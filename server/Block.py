@@ -12,6 +12,7 @@ class Block:
         self.timestamp = datetime.utcnow().isoformat()
         self.merkle_root = None
         self.hash = None
+        self.nonce = 0
 
     def __repr__(self):
         return f"Block(id={self.block_id}, tx_count={len(self.transactions)}, hash={self.hash})"
