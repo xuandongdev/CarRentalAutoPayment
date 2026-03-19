@@ -4,17 +4,18 @@ from uuid import uuid4
 
 class Wallet:
     def __init__(self, address=None, balance=0, private_key=None):
-        self.private_key = private_key or str(uuid4())
-        self.address = address or self._deriveAddress(self.private_key)
+        self.address = address or self._deriveAddress(str(uuid4()))
         self.balance = float(balance)
-        self.locked_balance = 0.0
-
+        self.locked_balance = 0
+        self.owner_id = None
+        self.role = ""
+        
     def __str__(self):
         return (
             f"Wallet(address={self.address}, balance={self.balance}, "
             f"locked_balance={self.locked_balance})"
         )
-
+    
     def _deriveAddress(self, key_material):
         return hashlib.sha256(key_material.encode("utf-8")).hexdigest()[:16]
 

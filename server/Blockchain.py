@@ -5,7 +5,8 @@ class Blockchain:
     def __init__(self):
         self.chain = []
         self.pending_transactions = []
-        self.createGenesisBlock()
+        self.getLatestBlock = self.getLatestBlock
+        self.isValid = self.validateBlock
 
     def createGenesisBlock(self):
         if self.chain:
