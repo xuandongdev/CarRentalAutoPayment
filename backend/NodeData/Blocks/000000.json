@@ -1,0 +1,10 @@
+{
+  "blockHeight": 0,
+  "timestamp": "2026-03-23T18:50:23.341082+00:00",
+  "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nonce": 0,
+  "merkleRoot": "901131d838b17aac0f7885b81e03cbdc9f5157a00343d30ab22083685ed1416a",
+  "transactionCount": 0,
+  "transactions": [],
+  "hash": "25ac50381cabeac678f1a52793b180694f4398df7d03ed18466b1a16fca1a194"
+}
