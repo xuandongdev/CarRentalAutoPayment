@@ -1,0 +1,14 @@
+server_test/__pycache__/Server.cpython-38.pyc
+backend/Service/__pycache__/RentalService.cpython-38.pyc
+backend/.env
+.vscode/settings.json
+backend/Service/__pycache__/RentalService.cpython-312.pyc
+backend/__pycache__/server.cpython-312.pyc
+backend/__pycache__/db.cpython-312.pyc
+backend/__pycache__/db.cpython-38.pyc
+backend/__pycache__/main.cpython-38.pyc
+backend/__pycache__/main.cpython-312.pyc
+backend/__pycache__/mock_server.cpython-38.pyc
+backend/__pycache__/NodeStorage.cpython-38.pyc
+backend/__pycache__/NodeStorage.cpython-312.pyc
+backend/__pycache__/server.cpython-38.pyc

@@ -564,9 +564,7 @@ HTML_PAGE = """
 </head>
 <body>
   <div class="wrap">
-    <h1>Demo thao tac thue xe + giao dich blockchain</h1>
-    <p class="muted">UI don gian goi fetch ve backend. Backend doc/ghi Supabase va mine block local trong thu muc NodeData.</p>
-
+    
     <div class="grid">
       <div class="card">
         <h3>1. Them xe</h3>
