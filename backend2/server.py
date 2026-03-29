@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from supabase import Client, create_client
 
 from modules.config import NODE_DATA_DIR, SUPABASE_KEY, SUPABASE_URL
@@ -19,7 +21,10 @@ from modules.models import (
 from modules.node_storage import LocalNodeStorage
 from modules.service import RentalAppService
 
-app = FastAPI(title="Car Rental Demo Server", version="1.1.0")
+app = FastAPI(title="Car Rental Demo Server", version="1.2.0")
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+if frontend_dir.exists():
+    app.mount("/frontend", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     supabase: Optional[Client] = None
@@ -41,6 +46,16 @@ def index():
     return HTML_PAGE
 
 
+@app.get("/home")
+def home_redirect():
+    return RedirectResponse(url="/frontend/index.html")
+
+
+@app.get("/test")
+def test_redirect():
+    return RedirectResponse(url="/frontend/index.html")
+
+
 @app.get("/api/overview")
 def api_overview():
     try:
@@ -54,6 +69,21 @@ def api_overview():
 @app.get("/api/node/chain")
 def api_chain():
     return node_storage.export_chain()
+
+
+@app.post("/api/node/reconcile")
+def api_reconcile_chain():
+    try:
+        return require_service().reconcile_chain_to_db()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/node/reconcile")
+def api_reconcile_chain_get():
+    return api_reconcile_chain()
 
 
 @app.post("/api/vehicles")
@@ -77,13 +107,18 @@ def api_create_booking(req: CreateBookingRequest):
 
 
 @app.post("/api/contracts/from-booking")
-def api_create_contract(req: CreateContractRequest):
+def api_create_contract_from_booking(req: CreateContractRequest):
     try:
         return require_service().create_contract_from_booking(req)
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/create")
+def api_create_contract(req: CreateContractRequest):
+    return api_create_contract_from_booking(req)
 
 
 @app.post("/api/contracts/{contract_id}/lock-deposit")

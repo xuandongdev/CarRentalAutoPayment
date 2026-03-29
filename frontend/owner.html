@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Owner Console</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Owner Test Console</h1>
+    <nav>
+      <a href="/frontend/index.html">Home</a>
+      <a href="/frontend/owner.html">Owner</a>
+      <a href="/frontend/renter.html">Renter</a>
+    </nav>
+  </header>
+  <main>
+    <div class="card">
+      <h2>API Base URL</h2>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+    </div>
+    <div class="grid">
+      <section class="card">
+        <h3>Add Vehicle</h3>
+        <label>Owner Email <input id="ownerEmail"></label>
+        <label>Bien So <input id="bienSo"></label>
+        <label>Hang Xe <input id="hangXe"></label>
+        <label>Dong Xe <input id="dongXe"></label>
+        <label>Loai Xe <input id="loaiXe" value="Sedan"></label>
+        <label>Gia Theo Ngay <input id="giaTheoNgay" value="800000"></label>
+        <label>Tien Coc Goi Y <input id="tienCoc" value="2000000"></label>
+        <label>Mo Ta <textarea id="moTa"></textarea></label>
+        <p class="note">Truong tien coc de tester tham chieu khi tao contract, API /api/vehicles hien tai khong nhan field nay.</p>
+        <button id="addVehicle">Add Vehicle</button>
+      </section>
+      <section class="card">
+        <h3>Create Damage Claim</h3>
+        <label>Contract ID <input id="contractId"></label>
+        <label>Owner ID <input id="ownerId"></label>
+        <label>Ly Do <textarea id="lyDo"></textarea></label>
+        <label>Estimated Cost <input id="estimatedCost" value="1200000"></label>
+        <label>Evidence URLs <textarea id="evidenceUrls"></textarea></label>
+        <label>Ghi Chu <textarea id="ghiChu"></textarea></label>
+        <button id="claimDamage">Claim Damage</button>
+      </section>
+      <section class="card">
+        <h3>Quick Check Overview</h3>
+        <button id="loadOverview">Load Overview</button>
+      </section>
+    </div>
+    <section class="card">
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/owner.js"></script>
+</body>
+</html>

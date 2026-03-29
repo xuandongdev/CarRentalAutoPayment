@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  --bg: #f3f5f8;
+  --card: #ffffff;
+  --border: #d9e0ea;
+  --text: #152033;
+  --muted: #5f6b7a;
+  --accent: #0f62fe;
+  --accent-2: #0a3fb4;
+  --danger: #c62828;
+}
+body {
+  margin: 0;
+  font-family: Segoe UI, Arial, sans-serif;
+  background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+  color: var(--text);
+}
+header {
+  padding: 20px 24px;
+  background: #0f172a;
+  color: white;
+}
+nav {
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+nav a {
+  color: white;
+  text-decoration: none;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+}
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.card h2, .card h3 {
+  margin-top: 0;
+}
+label {
+  display: block;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+input, textarea, button {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font: inherit;
+}
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover {
+  background: var(--accent-2);
+}
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.button-row button {
+  width: auto;
+}
+.note {
+  font-size: 13px;
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+pre {
+  margin: 0;
+  background: #0b1120;
+  color: #d9e5ff;
+  padding: 16px;
+  border-radius: 16px;
+  min-height: 220px;
+  overflow: auto;
+}
+@media (max-width: 700px) {
+  main {
+    padding: 16px;
+  }
+}

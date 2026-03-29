@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Renter Console</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Renter Test Console</h1>
+    <nav>
+      <a href="/frontend/index.html">Home</a>
+      <a href="/frontend/owner.html">Owner</a>
+      <a href="/frontend/renter.html">Renter</a>
+    </nav>
+  </header>
+  <main>
+    <div class="card">
+      <h2>API Base URL</h2>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+    </div>
+    <div class="grid">
+      <section class="card">
+        <h3>Create Booking</h3>
+        <label>Renter Email <input id="renterEmail"></label>
+        <label>Bien So <input id="bookingBienSo"></label>
+        <label>Ngay Bat Dau <input id="ngayBatDau" type="date"></label>
+        <label>Ngay Ket Thuc <input id="ngayKetThuc" type="date"></label>
+        <label>Dia Diem Nhan <input id="diaDiemNhan"></label>
+        <label>Tong Tien Du Kien <input id="tongTienDuKien" value="1600000"></label>
+        <button id="createBooking">Create Booking</button>
+      </section>
+      <section class="card">
+        <h3>Create Contract</h3>
+        <label>Booking ID <input id="bookingId"></label>
+        <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
+        <button id="createContract">Create Contract</button>
+      </section>
+      <section class="card">
+        <h3>Lock Deposit</h3>
+        <label>Contract ID <input id="lockContractId"></label>
+        <button id="lockDeposit">Lock Deposit</button>
+      </section>
+      <section class="card">
+        <h3>Return Vehicle</h3>
+        <label>Contract ID <input id="returnContractId"></label>
+        <label>Nguoi Tra ID <input id="nguoiTraId"></label>
+        <label>Ghi Chu <textarea id="returnNote">Khach da tra xe</textarea></label>
+        <label>Evidence URLs <textarea id="returnEvidenceUrls"></textarea></label>
+        <button id="returnVehicle">Return Vehicle</button>
+      </section>
+      <section class="card">
+        <h3>Settle Contract</h3>
+        <label>Contract ID <input id="settleContractId"></label>
+        <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
+        <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
+        <button id="settleContract">Settle</button>
+      </section>
+    </div>
+    <section class="card">
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/renter.js"></script>
+</body>
+</html>
