@@ -52,6 +52,19 @@ class LocalNodeStorage:
     def _load_meta(self) -> dict:
         return json.loads(self.meta_file.read_text(encoding="utf-8"))
 
+    def get_meta(self) -> dict:
+        return self._load_meta()
+
+    def sync_head(self, block_height: int, block_hash: str):
+        meta = self._load_meta()
+        current_height = int(meta.get("latestBlockHeight", 0))
+        current_hash = meta.get("latestBlockHash")
+        if block_height < current_height:
+            return
+        if block_height == current_height and block_hash == current_hash:
+            return
+        self._save_meta({**meta, "latestBlockHeight": int(block_height), "latestBlockHash": block_hash, "updatedAt": now_iso()})
+
     def _write_block(self, block: dict):
         file_path = self.blocks_dir / f"{int(block['blockHeight']):06d}.json"
         file_path.write_text(json.dumps(block, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -54,6 +54,12 @@ class RentalAppService:
     def list_rows(self, table_key: str, limit: int = 10) -> list[dict]:
         return self.t(table_key).select("*").limit(limit).execute().data or []
 
+    def safe_list_rows(self, table_key: str, limit: int = 10) -> tuple[list[dict], Optional[str]]:
+        try:
+            return self.list_rows(table_key, limit), None
+        except Exception as exc:
+            return [], str(exc)
+
     def insert(self, table_key: str, payload: dict) -> dict:
         result = self.t(table_key).insert(payload).execute()
         if not result.data:
@@ -227,6 +233,7 @@ class RentalAppService:
         }
 
     def _mine_and_mirror(self, txs: list[dict]) -> dict:
+        self._align_local_head_with_db()
         block = self.node.mine_block(txs)
         mirror_stats = self.mirror_block(block)
         return {"block": block, "mirror": mirror_stats}
@@ -236,6 +243,24 @@ class RentalAppService:
         if not result.data:
             return {"blockheight": None, "hash": None}
         return result.data[0]
+
+    def _safe_db_latest_block_meta(self) -> tuple[dict, Optional[str]]:
+        try:
+            return self._get_db_latest_block_meta(), None
+        except Exception as exc:
+            return {"blockheight": None, "hash": None}, str(exc)
+
+    def _align_local_head_with_db(self):
+        db_latest = self._get_db_latest_block_meta()
+        db_height = db_latest.get("blockheight")
+        db_hash = db_latest.get("hash")
+        if db_height is None or not db_hash:
+            return
+        local_meta = self.node.get_meta()
+        local_height = int(local_meta.get("latestBlockHeight", 0))
+        local_hash = local_meta.get("latestBlockHash")
+        if db_height > local_height or (db_height == local_height and db_hash != local_hash):
+            self.node.sync_head(int(db_height), db_hash)
 
     def reconcile_chain_to_db(self) -> dict:
         chain = self.node.export_chain()
@@ -730,23 +755,51 @@ class RentalAppService:
         chain = self.node.export_chain()
         blocks = chain.get("blocks", [])
         local_meta = chain.get("meta", {})
-        db_latest = self._get_db_latest_block_meta()
+        db_latest, db_latest_error = self._safe_db_latest_block_meta()
         local_height = local_meta.get("latestBlockHeight")
         local_hash = local_meta.get("latestBlockHash")
         db_height = db_latest.get("blockheight")
         db_hash = db_latest.get("hash")
-        sync_status = "synced" if local_height == db_height and local_hash == db_hash else "outOfSync"
+        if db_height is None and db_hash is None:
+            sync_status = "localOnly"
+        else:
+            sync_status = "synced" if local_height == db_height and local_hash == db_hash else "outOfSync"
+
+        payload = {
+            "users": [],
+            "wallets": [],
+            "vehicles": [],
+            "bookings": [],
+            "contracts": [],
+            "deposits": [],
+            "damageReports": [],
+            "disputes": [],
+            "transactions": [],
+            "events": [],
+        }
+        warnings = {}
+        for response_key, table_key in [
+            ("users", "users"),
+            ("wallets", "wallets"),
+            ("vehicles", "vehicles"),
+            ("bookings", "bookings"),
+            ("contracts", "contracts"),
+            ("deposits", "deposits"),
+            ("damageReports", "damage_reports"),
+            ("disputes", "disputes"),
+            ("transactions", "transactions"),
+            ("events", "events"),
+        ]:
+            rows, error = self.safe_list_rows(table_key, 20)
+            payload[response_key] = rows
+            if error:
+                warnings[response_key] = error
+        if db_latest_error:
+            warnings["dbLatestBlock"] = db_latest_error
+
         return {
-            "users": self.list_rows("users", 20),
-            "wallets": self.list_rows("wallets", 20),
-            "vehicles": self.list_rows("vehicles", 20),
-            "bookings": self.list_rows("bookings", 20),
-            "contracts": self.list_rows("contracts", 20),
-            "deposits": self.list_rows("deposits", 20),
-            "damageReports": self.list_rows("damage_reports", 20),
-            "disputes": self.list_rows("disputes", 20),
-            "transactions": self.list_rows("transactions", 20),
-            "events": self.list_rows("events", 20),
+            **payload,
+            "warnings": warnings,
             "localLatestBlockHeight": local_height,
             "localLatestBlockHash": local_hash,
             "dbLatestBlockHeight": db_height,
