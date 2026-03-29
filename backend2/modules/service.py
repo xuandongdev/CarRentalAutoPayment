@@ -152,9 +152,12 @@ class RentalAppService:
         if address is None:
             return None
         text = str(address).strip()
-        if text.lower().startswith("0x"):
-            return text.lower()
-        return text
+        # Keep configured system addresses stable because wallet.address is a FK target by exact text.
+        if text.lower() == str(SYSTEM_ESCROW_ADDRESS).strip().lower():
+            return str(SYSTEM_ESCROW_ADDRESS).strip()
+        if text.lower() == str(PLATFORM_FEE_ADDRESS).strip().lower():
+            return str(PLATFORM_FEE_ADDRESS).strip()
+        return text.lower() if text.lower().startswith("0x") else text
 
     def _decimal(self, value: Any) -> Decimal:
         if isinstance(value, Decimal):
@@ -184,17 +187,25 @@ class RentalAppService:
     def _ensure_system_wallets(self) -> dict[str, dict]:
         wallets = {}
         for address in [SYSTEM_ESCROW_ADDRESS, PLATFORM_FEE_ADDRESS]:
+            canonical = self._normalize_address(address)
             wallet = self._get_wallet_by_address(address)
             if wallet is None:
                 wallet = self.insert("wallets", {
                     "nguoidungid": None,
-                    "address": self._normalize_address(address),
+                    "address": canonical,
                     "wallettype": "system",
                     "status": "active",
                     "balance": 0,
                     "lockedbalance": 0,
                     "syncat": now_iso(),
                     "createdat": now_iso(),
+                })
+            elif wallet.get("address") != canonical:
+                wallet = self.update("wallets", "id", wallet["id"], {
+                    "address": canonical,
+                    "wallettype": "system",
+                    "status": "active",
+                    "syncat": now_iso(),
                 })
             wallets[address] = wallet
         return wallets

@@ -147,6 +147,13 @@ class AuthService:
         details = " ".join(f"{key}={value}" for key, value in fields.items() if value is not None)
         print(f"[AUTH] {now_iso()} action={action} {details}".strip())
 
+
+    def _safe_touch_session(self, jti: str):
+        try:
+            self.update("auth_sessions", "jti", jti, {"lastseenat": now_iso()})
+        except Exception as exc:
+            self._log_auth_event("session_touch_skipped", jti=jti, reason=str(exc))
+
     def register(self, req: RegisterRequest) -> RegisterResponse:
         if not req.email and not req.sodienthoai:
             raise ValueError("Can cung cap it nhat email hoac soDienThoai")
@@ -210,7 +217,7 @@ class AuthService:
         user = self.one("users", id=payload["sub"])
         if (user.get("trangthai") or user.get("trangThai")) != "hoatDong":
             raise HTTPException(status_code=403, detail="Tai khoan khong con hoat dong")
-        self.update("auth_sessions", "jti", payload["jti"], {"lastseenat": now_iso()})
+        self._safe_touch_session(payload["jti"])
         return {"user": user, "session": session, "payload": payload}
 
     def me(self, token: str) -> MeResponse:

@@ -3,68 +3,68 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Renter Console</title>
+  <title>Bang Dieu Khien Khach Thue</title>
   <link rel="stylesheet" href="/frontend/styles.css">
 </head>
 <body data-page-role="admin,khach">
   <header>
-    <h1>Renter Test Console</h1>
+    <h1>Bang Dieu Khien Khach Thue</h1>
     <nav>
-      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
-      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
-      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
-      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
-      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
-      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Trang Chu</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Chu Xe</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Khach Thue</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Dang Nhap</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Quan Tri</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Tai Chinh</a>
     </nav>
   </header>
   <main>
     <div class="card" data-page-content>
-      <h2>API Base URL</h2>
-      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <h2>Dia Chi Backend</h2>
+      <label>Dia chi Backend <input id="apiBase" value="http://127.0.0.1:8000"></label>
       <div class="button-row">
-        <button id="loadOverviewBtn">Load Overview</button>
-        <button id="loadChainBtn">Load Chain</button>
-        <button id="runReconcileBtn">Run Reconcile</button>
+        <button id="loadOverviewBtn">Tai Tong Quan</button>
+        <button id="loadChainBtn">Tai Chuoi</button>
+        <button id="runReconcileBtn">Dong Bo Lai</button>
       </div>
       <p class="note">Trang nay gom cac buoc booking, contract, lock deposit, return vehicle va settle.</p>
     </div>
     <div class="grid">
       <section class="card" data-page-content>
-        <h3>Create Booking</h3>
-        <label>Renter Email <input id="renterEmail"></label>
+        <h3>Tao Don Dat Xe</h3>
+        <label>Email Khach Thue <input id="renterEmail"></label>
         <label>Bien So <input id="bookingBienSo"></label>
         <label>Ngay Bat Dau <input id="ngayBatDau" type="date"></label>
         <label>Ngay Ket Thuc <input id="ngayKetThuc" type="date"></label>
         <label>Dia Diem Nhan <input id="diaDiemNhan"></label>
         <label>Tong Tien Du Kien <input id="tongTienDuKien" value="1600000"></label>
-        <button id="createBooking">Create Booking</button>
+        <button id="createBooking">Tao Don Dat Xe</button>
       </section>
       <section class="card" data-page-content>
-        <h3>Create Contract</h3>
-        <label>Booking ID <input id="bookingId"></label>
+        <h3>Tao Hop Dong</h3>
+        <label>Ma Don Dat Xe <input id="bookingId"></label>
         <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
-        <button id="createContract">Create Contract</button>
+        <button id="createContract">Tao Hop Dong</button>
       </section>
       <section class="card" data-page-content>
-        <h3>Lock Deposit</h3>
-        <label>Contract ID <input id="lockContractId"></label>
-        <button id="lockDeposit">Lock Deposit</button>
+        <h3>Khoa Tien Coc</h3>
+        <label>Ma Hop Dong <input id="lockContractId"></label>
+        <button id="lockDeposit">Khoa Tien Coc</button>
       </section>
       <section class="card" data-page-content>
-        <h3>Return Vehicle</h3>
-        <label>Contract ID <input id="returnContractId"></label>
-        <label>Nguoi Tra ID <input id="nguoiTraId"></label>
+        <h3>Tra Xe</h3>
+        <label>Ma Hop Dong <input id="returnContractId"></label>
+        <label>Ma Nguoi Tra <input id="nguoiTraId"></label>
         <label>Ghi Chu <textarea id="returnNote">Khach da tra xe</textarea></label>
-        <label>Evidence URLs <textarea id="returnEvidenceUrls"></textarea></label>
-        <button id="returnVehicle">Return Vehicle</button>
+        <label>URL Bang Chung <textarea id="returnEvidenceUrls"></textarea></label>
+        <button id="returnVehicle">Tra Xe</button>
       </section>
       <section class="card" data-page-content>
-        <h3>Settle Contract</h3>
-        <label>Contract ID <input id="settleContractId"></label>
+        <h3>Tat Toan Hop Dong</h3>
+        <label>Ma Hop Dong <input id="settleContractId"></label>
         <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
         <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
-        <button id="settleContract">Settle</button>
+        <button id="settleContract">Tat Toan</button>
       </section>
     </div>
 
