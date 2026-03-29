@@ -6,3 +6,4 @@ backend/Service/__pycache__/RentalService.cpython-312.pyc
 backend/__pycache__/
 backend2/modules/__pycache__/
 *.pyc
+.env
