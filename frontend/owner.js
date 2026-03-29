@@ -1,5 +1,11 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
   setDefaultApiBase();
+  bindUtilityButtons('result');
+  loadReferenceData('referenceData').catch((error) => renderJson('referenceData', { error: error.message }));
+
+  const refreshReference = async () => {
+    await loadReferenceData('referenceData');
+  };
 
   document.getElementById('addVehicle').addEventListener('click', async () => {
     try {
@@ -14,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const data = await requestJson('POST', `${getApiBase()}/api/vehicles`, body);
       renderJson('result', data);
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }
@@ -32,15 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const data = await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/damage-claim`, body);
       renderJson('result', data);
-    } catch (error) {
-      renderJson('result', { error: error.message });
-    }
-  });
-
-  document.getElementById('loadOverview').addEventListener('click', async () => {
-    try {
-      const data = await requestJson('GET', `${getApiBase()}/api/overview`);
-      renderJson('result', data);
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }

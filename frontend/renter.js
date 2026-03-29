@@ -1,5 +1,11 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
   setDefaultApiBase();
+  bindUtilityButtons('result');
+  loadReferenceData('referenceData').catch((error) => renderJson('referenceData', { error: error.message }));
+
+  const refreshReference = async () => {
+    await loadReferenceData('referenceData');
+  };
 
   document.getElementById('createBooking').addEventListener('click', async () => {
     try {
@@ -16,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await requestJson('POST', `${getApiBase()}/api/bookings`, body);
       renderJson('result', data);
       if (data.id) document.getElementById('bookingId').value = data.id;
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }
@@ -38,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data?.hopDongThue?.nguoithueid) {
         document.getElementById('nguoiTraId').value = data.hopDongThue.nguoithueid;
       }
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }
@@ -48,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const contractId = requireValue(document.getElementById('lockContractId').value, 'Can nhap contractId');
       const data = await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/lock-deposit`);
       renderJson('result', data);
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }
@@ -64,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const data = await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/return-vehicle`, body);
       renderJson('result', data);
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }
@@ -78,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const data = await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/settle`, body);
       renderJson('result', data);
+      await refreshReference();
     } catch (error) {
       renderJson('result', { error: error.message });
     }

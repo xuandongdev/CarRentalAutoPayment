@@ -1,11 +1,13 @@
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from supabase import Client, create_client
 
+from modules.auth import AuthService, extract_bearer_token
+from modules.auth_models import LoginRequest, RegisterRequest, WalletNonceRequest, WalletUnlinkRequest, WalletVerifyRequest
 from modules.config import NODE_DATA_DIR, SUPABASE_KEY, SUPABASE_URL
 from modules.html_page import HTML_PAGE
 from modules.models import (
@@ -21,7 +23,7 @@ from modules.models import (
 from modules.node_storage import LocalNodeStorage
 from modules.service import RentalAppService
 
-app = FastAPI(title="Car Rental Demo Server", version="1.2.0")
+app = FastAPI(title="Car Rental Demo Server", version="1.3.0")
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
 if frontend_dir.exists():
     app.mount("/frontend", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
@@ -33,12 +35,36 @@ else:
 
 node_storage = LocalNodeStorage(NODE_DATA_DIR)
 service = RentalAppService(supabase, node_storage) if supabase else None
+auth_service = AuthService(supabase) if supabase else None
 
 
 def require_service() -> RentalAppService:
     if service is None:
         raise HTTPException(status_code=500, detail="Thieu SUPABASE_URL hoac SUPABASE_KEY trong .env")
     return service
+
+
+def require_auth_service() -> AuthService:
+    if auth_service is None:
+        raise HTTPException(status_code=500, detail="Thieu SUPABASE_URL hoac SUPABASE_KEY trong .env")
+    return auth_service
+
+
+def get_current_user(token: str = Depends(extract_bearer_token)) -> dict:
+    return require_auth_service().get_current_user(token)
+
+
+def require_active_user(current_user: dict = Depends(get_current_user)) -> dict:
+    return current_user
+
+
+def optional_current_user(authorization: Optional[str] = Header(default=None)) -> Optional[dict]:
+    if not authorization:
+        return None
+    try:
+        return require_auth_service().get_current_user(extract_bearer_token(authorization))
+    except Exception:
+        return None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -54,6 +80,76 @@ def home_redirect():
 @app.get("/test")
 def test_redirect():
     return RedirectResponse(url="/frontend/index.html")
+
+
+@app.post("/auth/register")
+def auth_register(req: RegisterRequest):
+    try:
+        return require_auth_service().register(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/login")
+def auth_login(req: LoginRequest):
+    try:
+        return require_auth_service().login(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/logout")
+def auth_logout(token: str = Depends(extract_bearer_token)):
+    try:
+        return require_auth_service().logout(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/auth/me")
+def auth_me(token: str = Depends(extract_bearer_token)):
+    try:
+        return require_auth_service().me(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/nonce")
+def auth_wallet_nonce(req: WalletNonceRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        return require_auth_service().create_wallet_nonce(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/verify")
+def auth_wallet_verify(req: WalletVerifyRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        return require_auth_service().verify_wallet(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/unlink")
+def auth_wallet_unlink(req: WalletUnlinkRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        return require_auth_service().unlink_wallet(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get("/api/overview")
@@ -188,4 +284,4 @@ def api_settle_contract(contract_id: str, req: SettleContractRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

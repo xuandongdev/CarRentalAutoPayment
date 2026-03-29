@@ -1,0 +1,71 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auth Console</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Auth Test Console</h1>
+    <nav>
+      <a href="/frontend/index.html">Home</a>
+      <a href="/frontend/owner.html">Owner</a>
+      <a href="/frontend/renter.html">Renter</a>
+      <a href="/frontend/auth.html">Auth</a>
+    </nav>
+  </header>
+  <main>
+    <div class="card">
+      <h2>API Base URL</h2>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <div class="button-row">
+        <button id="loadOverviewBtn">Load Overview</button>
+        <button id="loadChainBtn">Load Chain</button>
+        <button id="runReconcileBtn">Run Reconcile</button>
+      </div>
+      <p class="note">Trang Home da co full console. Trang nay tap trung cho register, login, me, logout va link MetaMask.</p>
+    </div>
+    <div class="grid">
+      <section class="card">
+        <h3>Dang Ky</h3>
+        <label>Ho Ten <input id="registerHoTen"></label>
+        <label>Email <input id="registerEmail"></label>
+        <label>So Dien Thoai <input id="registerSoDienThoai"></label>
+        <label>Password <input id="registerPassword" type="password"></label>
+        <button id="registerBtn">Register</button>
+      </section>
+      <section class="card">
+        <h3>Login</h3>
+        <label>Email hoac So Dien Thoai <input id="identifier"></label>
+        <label>Password <input id="password" type="password"></label>
+        <button id="loginBtn">Login</button>
+      </section>
+      <section class="card">
+        <h3>Current Session</h3>
+        <div class="button-row">
+          <button id="meBtn">Get Me</button>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </section>
+      <section class="card">
+        <h3>Link MetaMask</h3>
+        <button id="linkWalletBtn">Connect / Link MetaMask</button>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
+    <section class="card">
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/auth.js"></script>
+</body>
+</html>

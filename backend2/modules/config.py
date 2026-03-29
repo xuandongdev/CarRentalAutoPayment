@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -9,6 +9,10 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 NODE_DATA_DIR = os.getenv("NODE_DATA_DIR", "./NodeData")
 SYSTEM_ESCROW_ADDRESS = os.getenv("SYSTEM_ESCROW_ADDRESS", "0xSYSTEMESCROW")
+JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-env")
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
+SIWE_DOMAIN = os.getenv("SIWE_DOMAIN", "127.0.0.1:8000")
+SIWE_URI = os.getenv("SIWE_URI", "http://127.0.0.1:8000")
 
 TABLES = {
     "users": os.getenv("TABLE_USERS", "nguoidung"),
@@ -23,34 +27,66 @@ TABLES = {
     "blocks": os.getenv("TABLE_BLOCKS", "block"),
     "transactions": os.getenv("TABLE_TRANSACTIONS", "transaction"),
     "events": os.getenv("TABLE_EVENTS", "event"),
+    "wallet_auth_challenges": os.getenv("TABLE_WALLET_AUTH_CHALLENGES", "walletauthchallenge"),
+    "auth_sessions": os.getenv("TABLE_AUTH_SESSIONS", "authsession"),
 }
 
+# Ung dung van dung cac trang thai nghiep vu mo rong, nhung khi ghi DB se map ve gia tri hop le
+# theo schema hien tai cua bang hopdongthue / tiencoc / tranhchap.
 CONTRACT_STATUS_ALIASES = {
     "khoiTao": {"khoiTao"},
-    "choKhoaCoc": {"choKhoaCoc"},
+    "choKhoaCoc": {"khoiTao", "choKhoaCoc"},
     "dangThue": {"dangThue"},
-    "choKiemTraTraXe": {"choKiemTraTraXe"},
-    "dangTranhChap": {"dangTranhChap"},
-    "adminXacNhanKhongHuHai": {"adminXacNhanKhongHuHai"},
-    "adminXacNhanCoHuHai": {"adminXacNhanCoHuHai"},
+    "choKiemTraTraXe": {"dangThue", "choKiemTraTraXe"},
+    "dangTranhChap": {"dangThue", "dangTranhChap"},
+    "adminXacNhanKhongHuHai": {"hoanThanh", "adminXacNhanKhongHuHai"},
+    "adminXacNhanCoHuHai": {"hoanThanh", "adminXacNhanCoHuHai"},
     "hoanThanh": {"hoanThanh"},
+}
+
+CONTRACT_STATUS_DB = {
+    "khoiTao": "khoiTao",
+    "choKhoaCoc": "khoiTao",
+    "dangThue": "dangThue",
+    "choKiemTraTraXe": "dangThue",
+    "dangTranhChap": "dangThue",
+    "adminXacNhanKhongHuHai": "hoanThanh",
+    "adminXacNhanCoHuHai": "hoanThanh",
+    "hoanThanh": "hoanThanh",
 }
 
 DEPOSIT_STATUS_ALIASES = {
     "chuaKhoa": {"chuaKhoa"},
     "daKhoa": {"daKhoa"},
-    "tamGiuDoTranhChap": {"tamGiuDoTranhChap"},
+    "tamGiuDoTranhChap": {"daKhoa", "tamGiuDoTranhChap"},
     "daHoan": {"daHoan"},
-    "daChuyenChoOwner": {"daChuyenChoOwner"},
+    "daChuyenChoOwner": {"daTatToan", "daChuyenChoOwner"},
     "daTatToan": {"daTatToan"},
 }
 
+DEPOSIT_STATUS_DB = {
+    "chuaKhoa": "chuaKhoa",
+    "daKhoa": "daKhoa",
+    "tamGiuDoTranhChap": "daKhoa",
+    "daHoan": "daHoan",
+    "daChuyenChoOwner": "daTatToan",
+    "daTatToan": "daTatToan",
+}
+
 DISPUTE_STATUS_ALIASES = {
-    "moiTao": {"moiTao"},
-    "choAdminXacMinh": {"choAdminXacMinh"},
-    "khongCoHuHai": {"khongCoHuHai"},
-    "coHuHai": {"coHuHai"},
-    "daDong": {"daDong"},
+    "moiTao": {"dangMo", "moiTao"},
+    "choAdminXacMinh": {"dangXuLy", "choAdminXacMinh"},
+    "khongCoHuHai": {"daGiaiQuyet", "dongVuViec", "khongCoHuHai"},
+    "coHuHai": {"daGiaiQuyet", "dongVuViec", "coHuHai"},
+    "daDong": {"dongVuViec", "daDong"},
+}
+
+DISPUTE_STATUS_DB = {
+    "moiTao": "dangMo",
+    "choAdminXacMinh": "dangXuLy",
+    "khongCoHuHai": "dongVuViec",
+    "coHuHai": "dongVuViec",
+    "daDong": "dongVuViec",
 }
 
 TX_EVENT_NAMES = {

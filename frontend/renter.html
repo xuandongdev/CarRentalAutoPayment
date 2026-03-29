@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
@@ -13,12 +13,19 @@
       <a href="/frontend/index.html">Home</a>
       <a href="/frontend/owner.html">Owner</a>
       <a href="/frontend/renter.html">Renter</a>
+      <a href="/frontend/auth.html">Auth</a>
     </nav>
   </header>
   <main>
     <div class="card">
       <h2>API Base URL</h2>
       <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <div class="button-row">
+        <button id="loadOverviewBtn">Load Overview</button>
+        <button id="loadChainBtn">Load Chain</button>
+        <button id="runReconcileBtn">Run Reconcile</button>
+      </div>
+      <p class="note">Trang nay gom cac buoc booking, contract, lock deposit, return vehicle va settle.</p>
     </div>
     <div class="grid">
       <section class="card">
@@ -58,6 +65,12 @@
         <button id="settleContract">Settle</button>
       </section>
     </div>
+
+    <section class="card">
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
     <section class="card">
       <h3>JSON Log</h3>
       <pre id="result">Chua co du lieu</pre>

@@ -1,11 +1,15 @@
+﻿
 from typing import Any, Optional
 
 from supabase import Client
 
 from .config import (
     CONTRACT_STATUS_ALIASES,
+    CONTRACT_STATUS_DB,
     DEPOSIT_STATUS_ALIASES,
+    DEPOSIT_STATUS_DB,
     DISPUTE_STATUS_ALIASES,
+    DISPUTE_STATUS_DB,
     SYSTEM_ESCROW_ADDRESS,
     TABLES,
     TX_EVENT_NAMES,
@@ -74,9 +78,12 @@ class RentalAppService:
             allowed |= aliases.get(name, {name})
         return allowed
 
+    def _db_status(self, mapping: dict[str, str], logical_status: str) -> str:
+        return mapping.get(logical_status, logical_status)
+
     def _ensure_contract_status(self, contract: dict, allowed_statuses: list[str], action: str):
         status = contract.get("trangthai")
-        if status == "hoanThanh":
+        if status == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
             raise ValueError("Contract da hoan thanh, khong the xu ly lai")
         if status not in self._allowed_statuses(CONTRACT_STATUS_ALIASES, allowed_statuses):
             raise ValueError(f"Khong the {action} khi contract dang o trang thai {status}")
@@ -89,11 +96,20 @@ class RentalAppService:
     def _get_contract_and_deposit(self, contract_id: str) -> tuple[dict, dict]:
         return self.one("contracts", id=contract_id), self.one("deposits", hopdongthueid=contract_id)
 
+    def _latest_damage_report(self, contract_id: str) -> Optional[dict]:
+        result = self.t("damage_reports").select("*").eq("hopdongthueid", contract_id).order("taoluc", desc=True).limit(1).execute()
+        return result.data[0] if result.data else None
+
     def _get_dispute_bundle(self, dispute_id: str) -> tuple[dict, dict, dict, Optional[dict]]:
         dispute = self.one("disputes", id=dispute_id)
         contract, deposit = self._get_contract_and_deposit(dispute["hopdongthueid"])
-        report = self.maybe_one("damage_reports", id=dispute["baocaohuhaiid"]) if dispute.get("baocaohuhaiid") else None
+        report = self._latest_damage_report(contract["id"])
         return dispute, contract, deposit, report
+
+    def _has_open_dispute(self, contract_id: str) -> bool:
+        rows = self.t("disputes").select("id,trangthai").eq("hopdongthueid", contract_id).limit(20).execute().data or []
+        open_statuses = self._allowed_statuses(DISPUTE_STATUS_ALIASES, ["moiTao", "choAdminXacMinh"])
+        return any((row.get("trangthai") in open_statuses) for row in rows)
 
     def _locked_deposit_amount(self, deposit: dict) -> float:
         amount = float(deposit.get("sotienkhoacoc") or 0)
@@ -240,7 +256,6 @@ class RentalAppService:
             "mirroredNewTransactions": mirrored_new_transactions,
             "skippedBlocks": skipped_blocks,
         }
-
     def add_vehicle(self, req: AddVehicleRequest) -> dict:
         owner = self.one("users", email=req.owneremail)
         existed = self.maybe_one("vehicles", bienso=req.bienso)
@@ -260,6 +275,8 @@ class RentalAppService:
             "baohiem": "Chua cap nhat",
             "dangkiem": "Chua cap nhat",
             "dangkyxe": "Chua cap nhat",
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
         })
 
     def create_booking(self, req: CreateBookingRequest) -> dict:
@@ -273,6 +290,8 @@ class RentalAppService:
             "tongtienthue": req.tongtienthue,
             "trangthai": "daDuyet",
             "ghichu": req.ghichu or "Tao tu UI demo",
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
         })
 
     def create_contract_from_booking(self, req: CreateContractRequest) -> dict:
@@ -303,12 +322,15 @@ class RentalAppService:
             "contracthash": contract_hash,
             "signaturenguoithue": sha256_text("sign|renter|" + contract_hash),
             "signaturechuxe": sha256_text("sign|owner|" + contract_hash),
-            "trangthai": "khoiTao",
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
             "tongtiencoc": req.tongtiencoc,
             "tongtienthanhtoan": 0,
             "tongtienhoanlai": 0,
             "dagiaoxe": False,
             "danhanlaixe": False,
+            "summaryhash": contract_hash,
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
         })
         deposit = self.insert("deposits", {
             "hopdongthueid": contract["id"],
@@ -316,9 +338,12 @@ class RentalAppService:
             "thoathuancoc": "Dat coc truoc khi nhan xe",
             "sotienkhoacoc": 0,
             "sotienhoancoc": 0,
-            "sotienchuyenchuxe": 0,
+            "txhashlock": None,
+            "txhashrefund": None,
             "hethongxuly": False,
-            "trangthai": "chuaKhoa",
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "chuaKhoa"),
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
         })
         self.update("bookings", "id", booking["id"], {"trangthai": "daTaoHopDong", "capnhatluc": now_iso()})
         return {"hopDongThue": contract, "tienCoc": deposit}
@@ -341,12 +366,11 @@ class RentalAppService:
             "sotienkhoacoc": deposit["tonghoacoc"],
             "txhashlock": tx["txHash"],
             "hethongxuly": True,
-            "trangthai": "daKhoa",
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daKhoa"),
+            "capnhatluc": now_iso(),
         })
         contract = self.update("contracts", "id", contract_id, {
-            "trangthai": "dangThue",
-            "txhashlock": tx["txHash"],
-            "blocknumberlock": block["blockHeight"],
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
             "dagiaoxe": True,
             "capnhatluc": now_iso(),
         })
@@ -355,38 +379,118 @@ class RentalAppService:
     def return_vehicle(self, contract_id: str, req: ReturnVehicleRequest) -> dict:
         contract, deposit = self._get_contract_and_deposit(contract_id)
         self._ensure_contract_status(contract, ["dangThue"], "tra xe")
+        if contract.get("danhanlaixe"):
+            raise ValueError("Contract da o sau buoc tra xe, khong the tra xe lap lai")
         if req.nguoitraid != contract["nguoithueid"]:
             raise ValueError("Nguoi tra xe khong dung voi nguoi thue cua contract")
         if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa"]):
             raise ValueError("Deposit chua khoa hoac khong con o trang thai cho phep tra xe")
-        payload = {"hopDongThueId": contract_id, "nguoiTraId": req.nguoitraid, "ghiChu": req.ghichu, "evidenceUrls": req.evidenceurls, "evidenceMeta": req.evidencemeta}
+        payload = {
+            "hopDongThueId": contract_id,
+            "nguoiTraId": req.nguoitraid,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
         evidence_hash = self._build_evidence_hash("vehicleReturned", payload)
-        tx = self.node.make_tx("VEHICLE_RETURNED", contract["addressnguoithue"], contract["addresschuxe"], 0, {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "action": "traXe", "evidenceHash": evidence_hash, **payload})
+        tx = self.node.make_tx(
+            "VEHICLE_RETURNED",
+            contract["addressnguoithue"],
+            contract["addresschuxe"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "traXe",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
         mine_result = self._mine_and_mirror([tx])
         block = mine_result["block"]
-        contract = self.update("contracts", "id", contract_id, {"trangthai": "choKiemTraTraXe", "danhanlaixe": True, "returnevidencehash": evidence_hash, "txhashreturn": tx["txHash"], "blocknumberreturn": block["blockHeight"], "thoigiantraxe": now_iso(), "capnhatluc": now_iso()})
-        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"]}
-
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "choKiemTraTraXe"),
+            "danhanlaixe": True,
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "returnEvidenceHash": evidence_hash}
     def create_damage_claim(self, contract_id: str, req: CreateDamageClaimRequest) -> dict:
         contract, deposit = self._get_contract_and_deposit(contract_id)
-        self._ensure_contract_status(contract, ["choKiemTraTraXe"], "tao khieu nai hu hai")
+        self._ensure_contract_status(contract, ["dangThue", "choKiemTraTraXe"], "tao khieu nai hu hai")
+        if not contract.get("danhanlaixe"):
+            raise ValueError("Chi duoc khieu nai sau khi xe da duoc tra")
         if req.ownerid != contract["chuxeid"]:
             raise ValueError("ownerId khong dung voi chu xe cua contract")
-        if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa"]):
+        if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa", "tamGiuDoTranhChap"]):
             raise ValueError("Deposit chua khoa ma da tranh chap")
-        for status in ["moiTao", "choAdminXacMinh"]:
-            if self.maybe_one("disputes", hopdongthueid=contract_id, trangthai=status):
-                raise ValueError("Contract nay da co tranh chap dang mo")
-        payload = {"hopDongThueId": contract_id, "ownerId": req.ownerid, "lyDo": req.lydo, "estimatedCost": req.estimatedcost, "evidenceUrls": req.evidenceurls, "evidenceMeta": req.evidencemeta, "ghiChu": req.ghichu}
+        if self._has_open_dispute(contract_id):
+            raise ValueError("Contract nay da co tranh chap dang mo")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "ownerId": req.ownerid,
+            "lyDo": req.lydo,
+            "estimatedCost": req.estimatedcost,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+            "ghiChu": req.ghichu,
+        }
         evidence_hash = self._build_evidence_hash("damageClaimed", payload)
-        report = self.insert("damage_reports", {"hopdongthueid": contract_id, "reporterid": req.ownerid, "mota": req.lydo, "evidenceurls": req.evidenceurls, "evidencehash": evidence_hash, "estimatedcost": req.estimatedcost, "ghichu": req.ghichu, "createdat": now_iso()})
-        dispute = self.insert("disputes", {"hopdongthueid": contract_id, "baocaohuhaiid": report["id"], "trangthai": "choAdminXacMinh", "ketluan": None, "lydo": req.lydo, "estimatedcost": req.estimatedcost, "approvedcost": None, "ownerclaimhash": evidence_hash, "admindecisionhash": None, "txhashclaim": None, "txhashdecision": None, "createdat": now_iso(), "resolvedat": None})
-        tx = self.node.make_tx("DAMAGE_CLAIMED", contract["addresschuxe"], SYSTEM_ESCROW_ADDRESS, 0, {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "tranhChapId": dispute["id"], "baoCaoHuHaiId": report["id"], "action": "taoKhieuNai", "evidenceHash": evidence_hash, **payload})
+        report = self.insert("damage_reports", {
+            "hopdongthueid": contract_id,
+            "mota": req.lydo,
+            "chiphisua": req.estimatedcost,
+            "danhsachanh": req.evidenceurls,
+            "reporthash": evidence_hash,
+            "trangthai": "moiTao",
+            "txhashrecord": None,
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
+        })
+        dispute = self.insert("disputes", {
+            "hopdongthueid": contract_id,
+            "lydo": req.lydo,
+            "loai": "damageClaim",
+            "trangthai": self._db_status(DISPUTE_STATUS_DB, "choAdminXacMinh"),
+            "ketquaxuly": None,
+            "sotienphaithu": req.estimatedcost,
+            "noidungketluan": req.ghichu or "Cho admin xac minh khieu nai hu hai",
+            "txhashresolve": None,
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
+        })
+        tx = self.node.make_tx(
+            "DAMAGE_CLAIMED",
+            contract["addresschuxe"],
+            SYSTEM_ESCROW_ADDRESS,
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "tranhChapId": dispute["id"],
+                "baoCaoHuHaiId": report["id"],
+                "action": "taoKhieuNai",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
         mine_result = self._mine_and_mirror([tx])
         block = mine_result["block"]
-        dispute = self.update("disputes", "id", dispute["id"], {"trangthai": "choAdminXacMinh", "txhashclaim": tx["txHash"]})
-        deposit = self.update("deposits", "id", deposit["id"], {"hethongxuly": True, "trangthai": "tamGiuDoTranhChap"})
-        contract = self.update("contracts", "id", contract_id, {"trangthai": "dangTranhChap", "capnhatluc": now_iso()})
+        report = self.update("damage_reports", "id", report["id"], {
+            "txhashrecord": tx["txHash"],
+            "capnhatluc": now_iso(),
+        })
+        deposit = self.update("deposits", "id", deposit["id"], {
+            "hethongxuly": True,
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "tamGiuDoTranhChap"),
+            "capnhatluc": now_iso(),
+        })
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangTranhChap"),
+            "capnhatluc": now_iso(),
+        })
+        dispute = self.update("disputes", "id", dispute["id"], {"capnhatluc": now_iso()})
         return {"block": block, "transaction": tx, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
 
     def admin_confirm_no_damage(self, dispute_id: str, req: AdminConfirmNoDamageRequest) -> dict:
@@ -397,16 +501,77 @@ class RentalAppService:
         locked = self._locked_deposit_amount(deposit)
         if locked <= 0:
             raise ValueError("Deposit khong con so tien dang khoa de hoan")
-        payload = {"tranhChapId": dispute_id, "hopDongThueId": contract["id"], "adminId": req.adminid, "decisionNote": req.decisionnote, "evidenceMeta": req.evidencemeta, "decision": "khongCoHuHai"}
+
+        payload = {
+            "tranhChapId": dispute_id,
+            "hopDongThueId": contract["id"],
+            "adminId": req.adminid,
+            "decisionNote": req.decisionnote,
+            "evidenceMeta": req.evidencemeta,
+            "decision": "khongCoHuHai",
+        }
         decision_hash = self._build_evidence_hash("adminDecisionNoDamage", payload)
-        decision_tx = self.node.make_tx("ADMIN_DECISION_NO_DAMAGE", admin_wallet["address"], SYSTEM_ESCROW_ADDRESS, 0, {"hopDongThueId": contract["id"], "tienCocId": deposit["id"], "tranhChapId": dispute_id, "baoCaoHuHaiId": report["id"] if report else None, "decision": "khongCoHuHai", "decisionHash": decision_hash, **payload})
-        refund_tx = self.node.make_tx("REFUND_DEPOSIT", SYSTEM_ESCROW_ADDRESS, contract["addressnguoithue"], locked, {"hopDongThueId": contract["id"], "tienCocId": deposit["id"], "tranhChapId": dispute_id, "action": "hoanToanBoTienCoc", "decision": "khongCoHuHai", "decisionHash": decision_hash})
+        decision_tx = self.node.make_tx(
+            "ADMIN_DECISION_NO_DAMAGE",
+            admin_wallet["address"],
+            SYSTEM_ESCROW_ADDRESS,
+            0,
+            {
+                "hopDongThueId": contract["id"],
+                "tienCocId": deposit["id"],
+                "tranhChapId": dispute_id,
+                "baoCaoHuHaiId": report["id"] if report else None,
+                "decision": "khongCoHuHai",
+                "decisionHash": decision_hash,
+                **payload,
+            },
+        )
+        refund_tx = self.node.make_tx(
+            "REFUND_DEPOSIT",
+            SYSTEM_ESCROW_ADDRESS,
+            contract["addressnguoithue"],
+            locked,
+            {
+                "hopDongThueId": contract["id"],
+                "tienCocId": deposit["id"],
+                "tranhChapId": dispute_id,
+                "action": "hoanToanBoTienCoc",
+                "decision": "khongCoHuHai",
+                "decisionHash": decision_hash,
+            },
+        )
         mine_result = self._mine_and_mirror([decision_tx, refund_tx])
         block = mine_result["block"]
-        dispute = self.update("disputes", "id", dispute_id, {"trangthai": "daDong", "ketluan": "khongCoHuHai", "admindecisionhash": decision_hash, "txhashdecision": decision_tx["txHash"], "resolvedat": now_iso()})
-        deposit = self.update("deposits", "id", deposit["id"], {"sotienhoancoc": locked, "sotienkhoacoc": 0, "txhashrefund": refund_tx["txHash"], "hethongxuly": True, "trangthai": "daHoan"})
-        contract = self.update("contracts", "id", contract["id"], {"trangthai": "hoanThanh", "txhashdecision": decision_tx["txHash"], "decisionhash": decision_hash, "tongtienhoanlai": locked, "danhanlaixe": True, "capnhatluc": now_iso()})
-        return {"block": block, "transactions": [decision_tx, refund_tx], "contract": contract, "deposit": deposit, "dispute": dispute, "mirror": mine_result["mirror"]}
+        dispute = self.update("disputes", "id", dispute_id, {
+            "trangthai": self._db_status(DISPUTE_STATUS_DB, "daDong"),
+            "ketquaxuly": "khongCoHuHai",
+            "noidungketluan": req.decisionnote,
+            "txhashresolve": decision_tx["txHash"],
+            "capnhatluc": now_iso(),
+        })
+        if report:
+            report = self.update("damage_reports", "id", report["id"], {
+                "trangthai": "daDong",
+                "capnhatluc": now_iso(),
+            })
+        deposit = self.update("deposits", "id", deposit["id"], {
+            "sotienhoancoc": locked,
+            "sotienkhoacoc": 0,
+            "txhashrefund": refund_tx["txHash"],
+            "hethongxuly": True,
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daHoan"),
+            "capnhatluc": now_iso(),
+        })
+        contract = self.update("contracts", "id", contract["id"], {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "hoanThanh"),
+            "txhashsettlement": refund_tx["txHash"],
+            "blocknumbersettlement": block["blockHeight"],
+            "tongtienhoanlai": locked,
+            "danhanlaixe": True,
+            "summaryhash": decision_hash,
+            "capnhatluc": now_iso(),
+        })
+        return {"block": block, "transactions": [decision_tx, refund_tx], "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
 
     def admin_confirm_damage(self, dispute_id: str, req: AdminConfirmDamageRequest) -> dict:
         dispute, contract, deposit, report = self._get_dispute_bundle(dispute_id)
@@ -418,37 +583,147 @@ class RentalAppService:
             raise ValueError("Deposit khong con so tien dang khoa de xu ly")
         if req.approvedcost > locked:
             raise ValueError("approvedCost vuot qua tien coc dang khoa")
+
         refund = locked - req.approvedcost
-        payload = {"tranhChapId": dispute_id, "hopDongThueId": contract["id"], "adminId": req.adminid, "approvedCost": req.approvedcost, "decisionNote": req.decisionnote, "evidenceMeta": req.evidencemeta, "decision": "coHuHai"}
+        payload = {
+            "tranhChapId": dispute_id,
+            "hopDongThueId": contract["id"],
+            "adminId": req.adminid,
+            "approvedCost": req.approvedcost,
+            "decisionNote": req.decisionnote,
+            "evidenceMeta": req.evidencemeta,
+            "decision": "coHuHai",
+        }
         decision_hash = self._build_evidence_hash("adminDecisionDamageConfirmed", payload)
-        txs = [self.node.make_tx("ADMIN_DECISION_DAMAGE_CONFIRMED", admin_wallet["address"], SYSTEM_ESCROW_ADDRESS, 0, {"hopDongThueId": contract["id"], "tienCocId": deposit["id"], "tranhChapId": dispute_id, "baoCaoHuHaiId": report["id"] if report else None, "decision": "coHuHai", "decisionHash": decision_hash, **payload})]
-        owner_tx = self.node.make_tx("PAYOUT_DEPOSIT_TO_OWNER", SYSTEM_ESCROW_ADDRESS, contract["addresschuxe"], req.approvedcost, {"hopDongThueId": contract["id"], "tienCocId": deposit["id"], "tranhChapId": dispute_id, "action": "chuyenCocChoOwner", "decision": "coHuHai", "decisionHash": decision_hash, "approvedCost": req.approvedcost})
+        txs = [
+            self.node.make_tx(
+                "ADMIN_DECISION_DAMAGE_CONFIRMED",
+                admin_wallet["address"],
+                SYSTEM_ESCROW_ADDRESS,
+                0,
+                {
+                    "hopDongThueId": contract["id"],
+                    "tienCocId": deposit["id"],
+                    "tranhChapId": dispute_id,
+                    "baoCaoHuHaiId": report["id"] if report else None,
+                    "decision": "coHuHai",
+                    "decisionHash": decision_hash,
+                    **payload,
+                },
+            )
+        ]
+        owner_tx = self.node.make_tx(
+            "PAYOUT_DEPOSIT_TO_OWNER",
+            SYSTEM_ESCROW_ADDRESS,
+            contract["addresschuxe"],
+            req.approvedcost,
+            {
+                "hopDongThueId": contract["id"],
+                "tienCocId": deposit["id"],
+                "tranhChapId": dispute_id,
+                "action": "chuyenCocChoOwner",
+                "decision": "coHuHai",
+                "decisionHash": decision_hash,
+                "approvedCost": req.approvedcost,
+            },
+        )
         txs.append(owner_tx)
         refund_tx = None
         if refund > 0:
-            refund_tx = self.node.make_tx("REFUND_DEPOSIT", SYSTEM_ESCROW_ADDRESS, contract["addressnguoithue"], refund, {"hopDongThueId": contract["id"], "tienCocId": deposit["id"], "tranhChapId": dispute_id, "action": "hoanPhanDuTienCoc", "decision": "coHuHai", "decisionHash": decision_hash, "refundAmount": refund})
+            refund_tx = self.node.make_tx(
+                "REFUND_DEPOSIT",
+                SYSTEM_ESCROW_ADDRESS,
+                contract["addressnguoithue"],
+                refund,
+                {
+                    "hopDongThueId": contract["id"],
+                    "tienCocId": deposit["id"],
+                    "tranhChapId": dispute_id,
+                    "action": "hoanPhanDuTienCoc",
+                    "decision": "coHuHai",
+                    "decisionHash": decision_hash,
+                    "refundAmount": refund,
+                },
+            )
             txs.append(refund_tx)
         mine_result = self._mine_and_mirror(txs)
         block = mine_result["block"]
-        dispute = self.update("disputes", "id", dispute_id, {"trangthai": "daDong", "ketluan": "coHuHai", "approvedcost": req.approvedcost, "admindecisionhash": decision_hash, "txhashdecision": txs[0]["txHash"], "resolvedat": now_iso()})
-        deposit = self.update("deposits", "id", deposit["id"], {"sotienhoancoc": refund, "sotienkhoacoc": 0, "sotienchuyenchuxe": req.approvedcost, "txhashownerpayout": owner_tx["txHash"], "txhashrefund": refund_tx["txHash"] if refund_tx else None, "hethongxuly": True, "trangthai": "daChuyenChoOwner" if refund == 0 else "daTatToan"})
-        contract = self.update("contracts", "id", contract["id"], {"trangthai": "hoanThanh", "txhashdecision": txs[0]["txHash"], "decisionhash": decision_hash, "tongtienhoanlai": refund, "danhanlaixe": True, "capnhatluc": now_iso()})
-        return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "mirror": mine_result["mirror"]}
-
+        dispute = self.update("disputes", "id", dispute_id, {
+            "trangthai": self._db_status(DISPUTE_STATUS_DB, "daDong"),
+            "ketquaxuly": "coHuHai",
+            "sotienphaithu": req.approvedcost,
+            "noidungketluan": req.decisionnote,
+            "txhashresolve": txs[0]["txHash"],
+            "capnhatluc": now_iso(),
+        })
+        if report:
+            report = self.update("damage_reports", "id", report["id"], {
+                "chiphisua": req.approvedcost,
+                "trangthai": "daDong",
+                "capnhatluc": now_iso(),
+            })
+        deposit = self.update("deposits", "id", deposit["id"], {
+            "sotienhoancoc": refund,
+            "sotienkhoacoc": 0,
+            "txhashrefund": refund_tx["txHash"] if refund_tx else None,
+            "hethongxuly": True,
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daChuyenChoOwner" if refund == 0 else "daTatToan"),
+            "capnhatluc": now_iso(),
+        })
+        contract = self.update("contracts", "id", contract["id"], {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "hoanThanh"),
+            "txhashsettlement": owner_tx["txHash"],
+            "blocknumbersettlement": block["blockHeight"],
+            "tongtienhoanlai": refund,
+            "danhanlaixe": True,
+            "summaryhash": decision_hash,
+            "capnhatluc": now_iso(),
+        })
+        return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
     def settle_contract(self, contract_id: str, tong_tien_thanh_toan: float, tong_tien_hoan_lai: float) -> dict:
         contract, deposit = self._get_contract_and_deposit(contract_id)
-        if contract.get("trangthai") == "dangTranhChap":
+        if self._has_open_dispute(contract_id):
             raise ValueError("Contract dang tranh chap, khong the tat toan truc tiep")
         self._ensure_contract_status(contract, ["dangThue", "choKiemTraTraXe"], "tat toan")
-        txs = [self.node.make_tx("SETTLE_PAYMENT", contract["addressnguoithue"], contract["addresschuxe"], tong_tien_thanh_toan, {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "action": "tatToan"})]
+
+        txs = [
+            self.node.make_tx(
+                "SETTLE_PAYMENT",
+                contract["addressnguoithue"],
+                contract["addresschuxe"],
+                tong_tien_thanh_toan,
+                {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "action": "tatToan"},
+            )
+        ]
         refund_tx = None
         if tong_tien_hoan_lai > 0:
-            refund_tx = self.node.make_tx("REFUND_DEPOSIT", SYSTEM_ESCROW_ADDRESS, contract["addressnguoithue"], tong_tien_hoan_lai, {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "action": "hoanCoc"})
+            refund_tx = self.node.make_tx(
+                "REFUND_DEPOSIT",
+                SYSTEM_ESCROW_ADDRESS,
+                contract["addressnguoithue"],
+                tong_tien_hoan_lai,
+                {"hopDongThueId": contract_id, "tienCocId": deposit["id"], "action": "hoanCoc"},
+            )
             txs.append(refund_tx)
         mine_result = self._mine_and_mirror(txs)
         block = mine_result["block"]
-        contract = self.update("contracts", "id", contract_id, {"trangthai": "hoanThanh", "tongtienthanhtoan": tong_tien_thanh_toan, "tongtienhoanlai": tong_tien_hoan_lai, "txhashsettlement": txs[0]["txHash"], "blocknumbersettlement": block["blockHeight"], "danhanlaixe": True, "capnhatluc": now_iso()})
-        deposit = self.update("deposits", "id", deposit["id"], {"sotienhoancoc": tong_tien_hoan_lai, "sotienkhoacoc": 0, "txhashrefund": refund_tx["txHash"] if refund_tx else None, "hethongxuly": True, "trangthai": "daHoan" if tong_tien_hoan_lai > 0 else "daTatToan"})
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "hoanThanh"),
+            "tongtienthanhtoan": tong_tien_thanh_toan,
+            "tongtienhoanlai": tong_tien_hoan_lai,
+            "txhashsettlement": txs[0]["txHash"],
+            "blocknumbersettlement": block["blockHeight"],
+            "danhanlaixe": True,
+            "capnhatluc": now_iso(),
+        })
+        deposit = self.update("deposits", "id", deposit["id"], {
+            "sotienhoancoc": tong_tien_hoan_lai,
+            "sotienkhoacoc": 0,
+            "txhashrefund": refund_tx["txHash"] if refund_tx else None,
+            "hethongxuly": True,
+            "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daHoan" if tong_tien_hoan_lai > 0 else "daTatToan"),
+            "capnhatluc": now_iso(),
+        })
         return {"block": block, "transactions": txs, "hopDongThue": contract, "tienCoc": deposit, "mirror": mine_result["mirror"]}
 
     def overview(self) -> dict:
@@ -462,8 +737,10 @@ class RentalAppService:
         db_hash = db_latest.get("hash")
         sync_status = "synced" if local_height == db_height and local_hash == db_hash else "outOfSync"
         return {
-            "vehicles": self.list_rows("vehicles", 10),
-            "bookings": self.list_rows("bookings", 10),
+            "users": self.list_rows("users", 20),
+            "wallets": self.list_rows("wallets", 20),
+            "vehicles": self.list_rows("vehicles", 20),
+            "bookings": self.list_rows("bookings", 20),
             "contracts": self.list_rows("contracts", 20),
             "deposits": self.list_rows("deposits", 20),
             "damageReports": self.list_rows("damage_reports", 20),

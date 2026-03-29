@@ -1,41 +1,116 @@
-<!doctype html>
+ï»¿<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CarRental Test Home</title>
+  <title>CarRental Full Console</title>
   <link rel="stylesheet" href="/frontend/styles.css">
 </head>
 <body>
   <header>
-    <h1>CarRentalAutoPayment Test Console</h1>
+    <h1>CarRentalAutoPayment Full Test Console</h1>
     <nav>
       <a href="/frontend/index.html">Home</a>
       <a href="/frontend/owner.html">Owner</a>
       <a href="/frontend/renter.html">Renter</a>
+      <a href="/frontend/auth.html">Auth</a>
     </nav>
   </header>
   <main>
-    <div class="card">
+    <section class="card">
       <h2>API Base URL</h2>
-      <label>Backend URL
-        <input id="apiBase" value="http://127.0.0.1:8000">
-      </label>
-      <p class="note">Gi? route cu ? <code>/</code>, còn b? test m?i ch?y t?i <code>/frontend</code>.</p>
-    </div>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <p class="note">Trang nay gom day du cac nut test cho auth, vehicle, booking, contract, dispute, chain va overview.</p>
+    </section>
+
     <div class="grid">
       <section class="card">
-        <h3>Overview</h3>
-        <button id="loadOverview">Load Overview</button>
+        <h3>Utility</h3>
+        <div class="button-row">
+          <button id="loadOverviewBtn">Load Overview</button>
+          <button id="loadChainBtn">Load Chain</button>
+          <button id="runReconcileBtn">Run Reconcile</button>
+        </div>
       </section>
+
       <section class="card">
-        <h3>Chain</h3>
-        <button id="loadChain">Load Chain</button>
+        <h3>Dang Ky</h3>
+        <label>Ho Ten <input id="registerHoTen"></label>
+        <label>Email <input id="registerEmail"></label>
+        <label>So Dien Thoai <input id="registerSoDienThoai"></label>
+        <label>Password <input id="registerPassword" type="password"></label>
+        <button id="registerBtn">Register</button>
       </section>
+
       <section class="card">
-        <h3>Reconcile</h3>
-        <button id="runReconcile">Run Reconcile</button>
+        <h3>Login / Me / Logout</h3>
+        <label>Identifier <input id="identifier"></label>
+        <label>Password <input id="password" type="password"></label>
+        <div class="button-row">
+          <button id="loginBtn">Login</button>
+          <button id="meBtn">Get Me</button>
+          <button id="logoutBtn">Logout</button>
+        </div>
+        <button id="linkWalletBtn">Connect / Link MetaMask</button>
       </section>
+
+      <section class="card">
+        <h3>Add Vehicle</h3>
+        <label>Owner Email <input id="ownerEmail"></label>
+        <label>Bien So <input id="bienSo"></label>
+        <label>Hang Xe <input id="hangXe"></label>
+        <label>Dong Xe <input id="dongXe"></label>
+        <label>Loai Xe <input id="loaiXe" value="Sedan"></label>
+        <label>Gia Theo Ngay <input id="giaTheoNgay" value="800000"></label>
+        <label>Gia Theo Gio <input id="giaTheoGio" value="120000"></label>
+        <label>Mo Ta <textarea id="moTa"></textarea></label>
+        <button id="addVehicle">Add Vehicle</button>
+      </section>
+
+      <section class="card">
+        <h3>Create Booking</h3>
+        <label>Renter Email <input id="renterEmail"></label>
+        <label>Bien So <input id="bookingBienSo"></label>
+        <label>Ngay Bat Dau <input id="ngayBatDau" type="date"></label>
+        <label>Ngay Ket Thuc <input id="ngayKetThuc" type="date"></label>
+        <label>Dia Diem Nhan <input id="diaDiemNhan"></label>
+        <label>Tong Tien Thue <input id="tongTienThue" value="1600000"></label>
+        <button id="createBooking">Create Booking</button>
+      </section>
+
+      <section class="card">
+        <h3>Create Contract</h3>
+        <label>Booking ID <input id="bookingId"></label>
+        <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
+        <button id="createContract">Create Contract</button>
+      </section>
+
+      <section class="card">
+        <h3>Lock Deposit</h3>
+        <label>Contract ID <input id="lockContractId"></label>
+        <button id="lockDeposit">Lock Deposit</button>
+      </section>
+
+      <section class="card">
+        <h3>Return Vehicle</h3>
+        <label>Contract ID <input id="returnContractId"></label>
+        <label>Nguoi Tra ID <input id="nguoiTraId"></label>
+        <label>Ghi Chu <textarea id="returnNote">Khach da tra xe</textarea></label>
+        <label>Evidence URLs <textarea id="returnEvidenceUrls"></textarea></label>
+        <button id="returnVehicle">Return Vehicle</button>
+      </section>
+
+      <section class="card">
+        <h3>Create Damage Claim</h3>
+        <label>Contract ID <input id="damageContractId"></label>
+        <label>Owner ID <input id="ownerId"></label>
+        <label>Ly Do <textarea id="lyDo"></textarea></label>
+        <label>Estimated Cost <input id="estimatedCost" value="1200000"></label>
+        <label>Evidence URLs <textarea id="damageEvidenceUrls"></textarea></label>
+        <label>Ghi Chu <textarea id="ghiChu"></textarea></label>
+        <button id="claimDamage">Claim Damage</button>
+      </section>
+
       <section class="card">
         <h3>Admin Confirm No Damage</h3>
         <label>Dispute ID <input id="noDamageDisputeId"></label>
@@ -43,6 +118,7 @@
         <label>Decision Note <textarea id="noDamageDecisionNote">Da doi chieu anh giao xe va anh tra xe, khong co hu hai moi</textarea></label>
         <button id="submitNoDamage">Submit</button>
       </section>
+
       <section class="card">
         <h3>Admin Confirm Damage</h3>
         <label>Dispute ID <input id="damageDisputeId"></label>
@@ -51,17 +127,22 @@
         <label>Decision Note <textarea id="damageDecisionNote">Xac nhan hu hai thuc te</textarea></label>
         <button id="submitDamage">Submit</button>
       </section>
+
       <section class="card">
-        <h3>Quick Guide</h3>
-        <p class="note">1. Owner them xe</p>
-        <p class="note">2. Renter tao booking</p>
-        <p class="note">3. Tao contract</p>
-        <p class="note">4. Lock deposit</p>
-        <p class="note">5. Return vehicle</p>
-        <p class="note">6. Damage claim</p>
-        <p class="note">7. Admin confirm no damage hoac damage</p>
+        <h3>Settle Contract</h3>
+        <label>Contract ID <input id="settleContractId"></label>
+        <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
+        <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
+        <button id="settleContract">Settle</button>
       </section>
     </div>
+
+
+    <section class="card">
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
     <section class="card">
       <h3>JSON Log</h3>
       <pre id="result">Chua co du lieu</pre>
