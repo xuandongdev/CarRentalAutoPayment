@@ -5,23 +5,23 @@ from uuid import uuid4
 
 
 class Transaction:
-    def __init__(self, transaction_id, amount, sender, receiver, tx_type="TRANSFER", metadata=None):
+    def __init__(self, transaction_id, amount, senderWallet, receiverWallet, type="TRANSFER", metadata=None):
         self.transaction_id = transaction_id or str(uuid4())
+        self.contract_id = None
+        self.senderWallet = senderWallet
+        self.receiverWallet = receiverWallet
         self.amount = float(amount)
-        self.sender = sender
-        self.receiver = receiver
-        self.tx_type = tx_type
-        self.metadata = metadata or {}
+        self.tx_type = type
         self.timestamp = datetime.utcnow().isoformat()
-        self.status = "CREATED"
+        self.status = ""
+        self.metadata = metadata or {} # booking_id, vehicle_id
         self.signature = None
-        self.block_hash = None
-        self.failure_reason = None
+        self.public_key = None
 
     def __str__(self):
         return (
-            f"Transaction ID: {self.transaction_id}, Type: {self.tx_type}, Amount: {self.amount}, "
-            f"Sender: {self.sender}, Receiver: {self.receiver}, Status: {self.status}"
+            f"Transaction ID: {self.transaction_id}, Type: {self.type}, Amount: {self.amount}, "
+            f"Sender: {self.senderWallet}, Receiver: {self.receiverWallet}, Status: {self.status}"
         )
 
     def create(self):
@@ -33,15 +33,16 @@ class Transaction:
             {
                 "transaction_id": self.transaction_id,
                 "amount": self.amount,
-                "sender": self.sender,
-                "receiver": self.receiver,
-                "tx_type": self.tx_type,
+                "senderWallet": self.senderWallet,
+                "receiverWallet": self.receiverWallet,
+                "type": self.type,
                 "metadata": self.metadata,
                 "timestamp": self.timestamp,
             },
             sort_keys=True,
         )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        self.dataHash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return self.dataHash
 
     def sign(self, private_key):
         transaction_hash = self.calculateHash()
@@ -59,9 +60,9 @@ class Transaction:
     def validate(self):
         if self.amount <= 0:
             return False
-        if not self.receiver:
+        if not self.receiverWallet:
             return False
-        if self.sender is not None and self.sender == self.receiver:
+        if self.senderWallet is not None and self.senderWallet == self.receiverWallet:
             return False
         return True
 
@@ -84,14 +85,15 @@ class Transaction:
     def toLedgerEntry(self):
         return {
             "transaction_id": self.transaction_id,
+            "type": self.type,
+            "senderWallet": self.senderWallet,
+            "receiverWallet": self.receiverWallet,
             "amount": self.amount,
-            "sender": self.sender,
-            "receiver": self.receiver,
-            "tx_type": self.tx_type,
-            "metadata": self.metadata,
             "timestamp": self.timestamp,
-            "status": self.status,
             "signature": self.signature,
+            "status": self.status,
+            "dataHash": self.dataHash,
+            "metadata": self.metadata,
             "block_hash": self.block_hash,
             "failure_reason": self.failure_reason,
         }

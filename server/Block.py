@@ -5,16 +5,15 @@ from datetime import datetime
 
 class Block:
     def __init__(self, block_id, data=None):
-        self.block_id = block_id
-        self.data = data or []
-        self.transactions = list(self.data)
-        self.previous_hash = None
+        self.blockID = block_id
+        self.previous_hash = ""
         self.timestamp = datetime.utcnow().isoformat()
-        self.merkle_root = None
-        self.hash = None
+        self.transactions = []
+        self.merkle_root = ""
+        self.hash = ""
 
     def __repr__(self):
-        return f"Block(id={self.block_id}, tx_count={len(self.transactions)}, hash={self.hash})"
+        return f"Block(id={self.blockID}, tx_count={len(self.transactions)}, hash={self.hash})"
 
     def constructor(self, previous_hash="0"):
         self.previous_hash = previous_hash

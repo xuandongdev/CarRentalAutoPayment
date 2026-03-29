@@ -1,0 +1,49 @@
+{
+  "blockHeight": 8,
+  "timestamp": "2026-03-24T07:00:33.804684+00:00",
+  "previousHash": "9c64fd0d8c6d813fbde63e7fd197e718317b2942dec28d6abac0821916d20f48",
+  "nonce": 0,
+  "merkleRoot": "dd0d130e096ef570a9eca111f54e23db0348355abfcaea428cc2315d09b6118f",
+  "transactionCount": 2,
+  "transactions": [
+    {
+      "txHash": "TXA87B561AD0A2",
+      "txType": "SETTLE_PAYMENT",
+      "dataHash": "9575d3385f0e079f9cc49b3adbc570021095378c9c9cf141af526c222cb99eb6",
+      "fromAddress": "0xKHACH001",
+      "toAddress": "0xCHUXE001",
+      "amount": 1500000.0,
+      "timestamp": "2026-03-24T07:00:33.804684+00:00",
+      "signature": "8a9250d8ff897bc4cd3c55705653aacfe9006ea4e3e7f1677ecc967a96844c56",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "72e9440d-0739-497e-a8de-1f73fc89e32d",
+        "tienCocId": "7e1b2e59-365e-4aca-91c6-bbec7cd455b1",
+        "action": "tatToan"
+      },
+      "blockHeight": 8,
+      "blockHash": "a4f9147767da5869194164e4d9f80e58a16aa5526f11460c31a0b74a2f9383df",
+      "txIndex": 0
+    },
+    {
+      "txHash": "TX9EBC79943618",
+      "txType": "REFUND_DEPOSIT",
+      "dataHash": "24488403a3a6f4f8781eb8460f10d3b8279e890fca6099851478fb02f35737dd",
+      "fromAddress": "0xSYSTEMESCROW",
+      "toAddress": "0xKHACH001",
+      "amount": 500000.0,
+      "timestamp": "2026-03-24T07:00:33.804684+00:00",
+      "signature": "c293f34531b6f97a6dd9d2d687dda339ef7289d221bbb656cdc73e92d3a91018",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "72e9440d-0739-497e-a8de-1f73fc89e32d",
+        "tienCocId": "7e1b2e59-365e-4aca-91c6-bbec7cd455b1",
+        "action": "hoanCoc"
+      },
+      "blockHeight": 8,
+      "blockHash": "a4f9147767da5869194164e4d9f80e58a16aa5526f11460c31a0b74a2f9383df",
+      "txIndex": 1
+    }
+  ],
+  "hash": "a4f9147767da5869194164e4d9f80e58a16aa5526f11460c31a0b74a2f9383df"
+}

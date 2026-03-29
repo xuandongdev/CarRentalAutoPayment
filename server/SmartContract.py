@@ -5,12 +5,18 @@ from Transaction import Transaction
 
 class SmartContract:
     def __init__(self, name, code, blockchain=None, wallets=None):
-        self.name = name
-        self.code = code
-        self.blockchain = blockchain
-        self.wallets = wallets or {}
-        self.contracts = {}
-        self.events = []
+        self.contractID
+        self.bookingID
+        self.vehicleID
+        self.renterAddress
+        self.ownerAddress
+        self.depositAmount
+        self.lockedDeposit
+        self.usageSumary
+        self.penaltySummary
+        self.finalCharge
+        self.status
+        self.createAt
 
     def execute(self, *args):
         return {
@@ -119,9 +125,9 @@ class SmartContract:
         transaction = Transaction(
             transaction_id=None,
             amount=payable_amount,
-            sender=contract["renter_address"],
-            receiver=contract["owner_address"],
-            tx_type="RENTAL_PAYMENT",
+            senderWallet=contract["renter_address"],
+            receiverWallet=contract["owner_address"],
+            type="RENTAL_PAYMENT",
             metadata={"contract_id": contract_id},
         )
         if self.blockchain is not None:
@@ -151,9 +157,9 @@ class SmartContract:
         transaction = Transaction(
             transaction_id=None,
             amount=refund_amount,
-            sender="DEPOSIT_POOL",
-            receiver=contract["renter_address"],
-            tx_type="DEPOSIT_REFUND",
+            senderWallet="DEPOSIT_POOL",
+            receiverWallet=contract["renter_address"],
+            type="DEPOSIT_REFUND",
             metadata={"contract_id": contract_id},
         )
         if self.blockchain is not None:
