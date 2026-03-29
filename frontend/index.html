@@ -10,10 +10,12 @@
   <header>
     <h1>CarRentalAutoPayment Full Test Console</h1>
     <nav>
-      <a href="/frontend/index.html">Home</a>
-      <a href="/frontend/owner.html">Owner</a>
-      <a href="/frontend/renter.html">Renter</a>
-      <a href="/frontend/auth.html">Auth</a>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
     </nav>
   </header>
   <main>
@@ -24,7 +26,7 @@
     </section>
 
     <div class="grid">
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe,khach">
         <h3>Utility</h3>
         <div class="button-row">
           <button id="loadOverviewBtn">Load Overview</button>
@@ -33,7 +35,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe,khach,guest">
         <h3>Dang Ky</h3>
         <label>Ho Ten <input id="registerHoTen"></label>
         <label>Email <input id="registerEmail"></label>
@@ -42,7 +44,7 @@
         <button id="registerBtn">Register</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe,khach,guest">
         <h3>Login / Me / Logout</h3>
         <label>Identifier <input id="identifier"></label>
         <label>Password <input id="password" type="password"></label>
@@ -54,7 +56,7 @@
         <button id="linkWalletBtn">Connect / Link MetaMask</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe">
         <h3>Add Vehicle</h3>
         <label>Owner Email <input id="ownerEmail"></label>
         <label>Bien So <input id="bienSo"></label>
@@ -67,7 +69,7 @@
         <button id="addVehicle">Add Vehicle</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,khach">
         <h3>Create Booking</h3>
         <label>Renter Email <input id="renterEmail"></label>
         <label>Bien So <input id="bookingBienSo"></label>
@@ -78,20 +80,20 @@
         <button id="createBooking">Create Booking</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,khach">
         <h3>Create Contract</h3>
         <label>Booking ID <input id="bookingId"></label>
         <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
         <button id="createContract">Create Contract</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,khach">
         <h3>Lock Deposit</h3>
         <label>Contract ID <input id="lockContractId"></label>
         <button id="lockDeposit">Lock Deposit</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,khach">
         <h3>Return Vehicle</h3>
         <label>Contract ID <input id="returnContractId"></label>
         <label>Nguoi Tra ID <input id="nguoiTraId"></label>
@@ -100,7 +102,7 @@
         <button id="returnVehicle">Return Vehicle</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe">
         <h3>Create Damage Claim</h3>
         <label>Contract ID <input id="damageContractId"></label>
         <label>Owner ID <input id="ownerId"></label>
@@ -111,7 +113,7 @@
         <button id="claimDamage">Claim Damage</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin">
         <h3>Admin Confirm No Damage</h3>
         <label>Dispute ID <input id="noDamageDisputeId"></label>
         <label>Admin ID <input id="noDamageAdminId"></label>
@@ -119,7 +121,7 @@
         <button id="submitNoDamage">Submit</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin">
         <h3>Admin Confirm Damage</h3>
         <label>Dispute ID <input id="damageDisputeId"></label>
         <label>Admin ID <input id="damageAdminId"></label>
@@ -128,12 +130,27 @@
         <button id="submitDamage">Submit</button>
       </section>
 
-      <section class="card">
+      <section class="card" data-visible-for="admin,chuxe,khach">
         <h3>Settle Contract</h3>
         <label>Contract ID <input id="settleContractId"></label>
         <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
         <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
         <button id="settleContract">Settle</button>
+      </section>
+
+      <section class="card" data-visible-for="admin">
+        <h3>Finance Quick View</h3>
+        <div class="button-row">
+          <button id="loadWalletsOverviewBtn">Wallets Overview</button>
+          <button id="loadFinanceSummaryBtn">Finance Summary</button>
+        </div>
+        <label>Finance Tx Wallet Address <input id="financeWalletAddress"></label>
+        <label>Finance Tx Type <input id="financeTxType"></label>
+        <label>Finance Tx Contract ID <input id="financeContractId"></label>
+        <label>Finance Tx Dispute ID <input id="financeDisputeId"></label>
+        <button id="loadFinanceTransactionsBtn">Load Finance Transactions</button>
+        <label>Money Flow Contract ID <input id="moneyFlowContractId"></label>
+        <button id="loadMoneyFlowBtn">Load Contract Money Flow</button>
       </section>
     </div>
 

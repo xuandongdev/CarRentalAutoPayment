@@ -6,18 +6,20 @@
   <title>Renter Console</title>
   <link rel="stylesheet" href="/frontend/styles.css">
 </head>
-<body>
+<body data-page-role="admin,khach">
   <header>
     <h1>Renter Test Console</h1>
     <nav>
-      <a href="/frontend/index.html">Home</a>
-      <a href="/frontend/owner.html">Owner</a>
-      <a href="/frontend/renter.html">Renter</a>
-      <a href="/frontend/auth.html">Auth</a>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
     </nav>
   </header>
   <main>
-    <div class="card">
+    <div class="card" data-page-content>
       <h2>API Base URL</h2>
       <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
       <div class="button-row">
@@ -28,7 +30,7 @@
       <p class="note">Trang nay gom cac buoc booking, contract, lock deposit, return vehicle va settle.</p>
     </div>
     <div class="grid">
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Create Booking</h3>
         <label>Renter Email <input id="renterEmail"></label>
         <label>Bien So <input id="bookingBienSo"></label>
@@ -38,18 +40,18 @@
         <label>Tong Tien Du Kien <input id="tongTienDuKien" value="1600000"></label>
         <button id="createBooking">Create Booking</button>
       </section>
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Create Contract</h3>
         <label>Booking ID <input id="bookingId"></label>
         <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
         <button id="createContract">Create Contract</button>
       </section>
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Lock Deposit</h3>
         <label>Contract ID <input id="lockContractId"></label>
         <button id="lockDeposit">Lock Deposit</button>
       </section>
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Return Vehicle</h3>
         <label>Contract ID <input id="returnContractId"></label>
         <label>Nguoi Tra ID <input id="nguoiTraId"></label>
@@ -57,7 +59,7 @@
         <label>Evidence URLs <textarea id="returnEvidenceUrls"></textarea></label>
         <button id="returnVehicle">Return Vehicle</button>
       </section>
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Settle Contract</h3>
         <label>Contract ID <input id="settleContractId"></label>
         <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
@@ -66,12 +68,12 @@
       </section>
     </div>
 
-    <section class="card">
+    <section class="card" data-page-content>
       <h3>Du Lieu Tham Chieu</h3>
       <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
       <pre id="referenceData">Dang tai...</pre>
     </section>
-    <section class="card">
+    <section class="card" data-page-content>
       <h3>JSON Log</h3>
       <pre id="result">Chua co du lieu</pre>
     </section>

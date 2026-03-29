@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: light;
   --bg: #f3f5f8;
   --card: #ffffff;
@@ -8,6 +8,8 @@
   --accent: #0f62fe;
   --accent-2: #0a3fb4;
   --danger: #c62828;
+  --success: #1b8f4d;
+  --warning: #b26a00;
 }
 body {
   margin: 0;
@@ -106,8 +108,61 @@ pre {
   min-height: 220px;
   overflow: auto;
 }
+.notice-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+}
+.notice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: white;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+.notice.info {
+  background: #1f4fd6;
+}
+.notice.success {
+  background: var(--success);
+}
+.notice.error {
+  background: var(--danger);
+}
+.notice.warning {
+  background: var(--warning);
+}
 @media (max-width: 700px) {
   main {
     padding: 16px;
   }
+  .notice-stack {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+}
+
+.session-card {
+  border-color: #bfd4ff;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+.session-summary {
+  white-space: pre-wrap;
+  font-family: Consolas, monospace;
+  line-height: 1.6;
+  color: #173057;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.role-notice {
+  border-color: #f2c97d;
+  background: #fff8e8;
 }

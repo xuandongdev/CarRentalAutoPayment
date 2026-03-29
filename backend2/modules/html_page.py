@@ -38,6 +38,14 @@
         <h3>Auth</h3>
         <a class=\"button\" href=\"/frontend/auth.html\">Mo auth page</a>
       </div>
+      <div class=\"card\">
+        <h3>Admin</h3>
+        <a class=\"button\" href=\"/frontend/admin.html\">Mo admin page</a>
+      </div>
+      <div class=\"card\">
+        <h3>Finance</h3>
+        <a class=\"button\" href=\"/frontend/finance.html\">Mo finance page</a>
+      </div>
     </div>
     <div class=\"card\">
       <h3>Quick API Buttons</h3>

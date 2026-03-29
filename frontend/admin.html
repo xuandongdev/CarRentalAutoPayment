@@ -1,0 +1,75 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Console</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body data-page-role="admin">
+  <header>
+    <h1>Admin Management Console</h1>
+    <nav>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
+    </nav>
+  </header>
+  <main>
+    <section class="card" data-page-content>
+      <h2>API Base URL</h2>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <div class="button-row">
+        <button id="loadOverviewBtn">Load Overview</button>
+        <button id="loadChainBtn">Load Chain</button>
+        <button id="runReconcileBtn">Run Reconcile</button>
+      </div>
+      <p class="note">Trang nay danh cho admin theo doi tong quan he thong, doi chieu chain va xu ly tranh chap.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" data-page-content>
+        <h3>Admin Confirm No Damage</h3>
+        <label>Dispute ID <input id="noDamageDisputeId"></label>
+        <label>Admin ID <input id="noDamageAdminId"></label>
+        <label>Decision Note <textarea id="noDamageDecisionNote">Da doi chieu du lieu ban giao va anh tra xe, khong phat hien hu hai moi.</textarea></label>
+        <button id="submitNoDamage">Submit No Damage</button>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Admin Confirm Damage</h3>
+        <label>Dispute ID <input id="damageDisputeId"></label>
+        <label>Admin ID <input id="damageAdminId"></label>
+        <label>Approved Cost <input id="approvedCost" value="1000000"></label>
+        <label>Decision Note <textarea id="damageDecisionNote">Xac nhan co hu hai thuc te, phe duyet muc boi thuong tu tien coc.</textarea></label>
+        <button id="submitDamage">Submit Damage</button>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Quan Ly Nhanh</h3>
+        <p class="note">Su dung khung du lieu tham chieu ben duoi de copy nhanh `adminId`, `disputeId`, `contractId`, `ownerId`, `renterId`.</p>
+        <div class="button-row">
+          <button id="loadOverviewBtn2">Refresh Overview</button>
+          <button id="loadChainBtn2">Refresh Chain</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" data-page-content>
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Tong hop users, vehicles, bookings, contracts, disputes de admin quan ly va copy du lieu can thiet.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
+
+    <section class="card" data-page-content>
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/admin.js"></script>
+</body>
+</html>

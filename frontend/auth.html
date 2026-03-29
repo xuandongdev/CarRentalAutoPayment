@@ -10,10 +10,12 @@
   <header>
     <h1>Auth Test Console</h1>
     <nav>
-      <a href="/frontend/index.html">Home</a>
-      <a href="/frontend/owner.html">Owner</a>
-      <a href="/frontend/renter.html">Renter</a>
-      <a href="/frontend/auth.html">Auth</a>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
     </nav>
   </header>
   <main>

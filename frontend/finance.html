@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CarRental Finance Console</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body data-page-role="admin">
+  <header>
+    <h1>CarRentalAutoPayment Finance Console</h1>
+    <nav>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
+    </nav>
+  </header>
+  <main>
+    <section class="card" data-page-content>
+      <h2>API Base URL</h2>
+      <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <p class="note">Khong co nap/rut that. So du vi duoc seed thu cong trong DB, trang nay chi de xem dong tien va fee 10%.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" data-page-content>
+        <h3>Utility</h3>
+        <div class="button-row">
+          <button id="loadOverviewBtn">Load Overview</button>
+          <button id="loadChainBtn">Load Chain</button>
+          <button id="runReconcileBtn">Run Reconcile</button>
+        </div>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Wallets Overview</h3>
+        <button id="loadWalletsOverviewBtn">Load Wallets Overview</button>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Finance Summary</h3>
+        <button id="loadFinanceSummaryBtn">Load Finance Summary</button>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Finance Transactions</h3>
+        <label>Wallet Address <input id="financeWalletAddress"></label>
+        <label>Tx Type <input id="financeTxType"></label>
+        <label>Contract ID <input id="financeContractId"></label>
+        <label>Dispute ID <input id="financeDisputeId"></label>
+        <button id="loadFinanceTransactionsBtn">Load Transactions</button>
+      </section>
+
+      <section class="card" data-page-content>
+        <h3>Money Flow By Contract</h3>
+        <label>Contract ID <input id="moneyFlowContractId"></label>
+        <button id="loadMoneyFlowBtn">Load Money Flow</button>
+      </section>
+    </div>
+
+    <section class="card" data-page-content>
+      <h3>Du Lieu Tham Chieu</h3>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
+    <section class="card" data-page-content>
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/finance.js"></script>
+</body>
+</html>

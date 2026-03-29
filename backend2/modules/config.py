@@ -9,6 +9,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 NODE_DATA_DIR = os.getenv("NODE_DATA_DIR", "./NodeData")
 SYSTEM_ESCROW_ADDRESS = os.getenv("SYSTEM_ESCROW_ADDRESS", "0xSYSTEMESCROW")
+PLATFORM_FEE_ADDRESS = os.getenv("PLATFORM_FEE_ADDRESS", "0xPLATFORMFEE")
+PLATFORM_FEE_RATE = float(os.getenv("PLATFORM_FEE_RATE", "0.10"))
 JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-env")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
 SIWE_DOMAIN = os.getenv("SIWE_DOMAIN", "127.0.0.1:8000")
@@ -98,4 +100,10 @@ TX_EVENT_NAMES = {
     "ADMIN_DECISION_NO_DAMAGE": "adminDecisionNoDamage",
     "ADMIN_DECISION_DAMAGE_CONFIRMED": "adminDecisionDamageConfirmed",
     "PAYOUT_DEPOSIT_TO_OWNER": "payoutDepositToOwner",
+    "PLATFORM_FEE_CHARGED": "platformFeeCharged",
+    "OWNER_NET_PAYOUT": "ownerNetPayout",
+    "RENTAL_PAYMENT_GROSS": "rentalPaymentGross",
+    "DAMAGE_PAYOUT_GROSS": "damagePayoutGross",
+    "ESCROW_LOCK": "escrowLocked",
+    "ESCROW_REFUND": "escrowRefunded",
 }

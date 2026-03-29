@@ -6,18 +6,20 @@
   <title>Owner Console</title>
   <link rel="stylesheet" href="/frontend/styles.css">
 </head>
-<body>
+<body data-page-role="admin,chuxe">
   <header>
     <h1>Owner Test Console</h1>
     <nav>
-      <a href="/frontend/index.html">Home</a>
-      <a href="/frontend/owner.html">Owner</a>
-      <a href="/frontend/renter.html">Renter</a>
-      <a href="/frontend/auth.html">Auth</a>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Home</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Owner</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Renter</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Auth</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Admin</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Finance</a>
     </nav>
   </header>
   <main>
-    <div class="card">
+    <div class="card" data-page-content>
       <h2>API Base URL</h2>
       <label>Backend URL <input id="apiBase" value="http://127.0.0.1:8000"></label>
       <div class="button-row">
@@ -28,7 +30,7 @@
       <p class="note">Trang Home da co full console. Trang nay giu focus cho owner nhung van hien day du cac nut utility.</p>
     </div>
     <div class="grid">
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Add Vehicle</h3>
         <label>Owner Email <input id="ownerEmail"></label>
         <label>Bien So <input id="bienSo"></label>
@@ -41,7 +43,7 @@
         <p class="note">Tien coc la gia tri tham chieu de tester nho khi tao contract.</p>
         <button id="addVehicle">Add Vehicle</button>
       </section>
-      <section class="card">
+      <section class="card" data-page-content>
         <h3>Create Damage Claim</h3>
         <label>Contract ID <input id="contractId"></label>
         <label>Owner ID <input id="ownerId"></label>
@@ -53,12 +55,12 @@
       </section>
     </div>
 
-    <section class="card">
+    <section class="card" data-page-content>
       <h3>Du Lieu Tham Chieu</h3>
       <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
       <pre id="referenceData">Dang tai...</pre>
     </section>
-    <section class="card">
+    <section class="card" data-page-content>
       <h3>JSON Log</h3>
       <pre id="result">Chua co du lieu</pre>
     </section>

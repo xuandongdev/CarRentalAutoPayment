@@ -1,11 +1,12 @@
 ﻿document.addEventListener('DOMContentLoaded', () => {
   setDefaultApiBase();
   bindUtilityButtons('result');
-  loadReferenceData('referenceData').catch((error) => renderJson('referenceData', { error: error.message }));
+  loadReferenceData('referenceData').catch((error) => {
+    renderJson('referenceData', { error: error.message });
+    notifyError('load_reference_data', error);
+  });
 
-  const refreshReference = async () => {
-    await loadReferenceData('referenceData');
-  };
+  const refreshReference = async () => loadReferenceData('referenceData');
 
   const syncContractIds = (contractId) => {
     if (!contractId) return;
@@ -17,16 +18,18 @@
 
   document.getElementById('registerBtn').addEventListener('click', async () => {
     try {
-      const body = {
+      const data = await requestJson('POST', `${getApiBase()}/auth/register`, {
         hoTen: requireValue(document.getElementById('registerHoTen').value, 'Can nhap hoTen'),
         email: document.getElementById('registerEmail').value.trim(),
         soDienThoai: document.getElementById('registerSoDienThoai').value.trim(),
         password: requireValue(document.getElementById('registerPassword').value, 'Can nhap password'),
-      };
-      renderJson('result', await requestJson('POST', `${getApiBase()}/auth/register`, body, ''));
+      }, '');
+      renderJson('result', data);
       await refreshReference();
+      notifySuccess('register', data?.user?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('register', error);
     }
   });
 
@@ -39,17 +42,22 @@
       setToken(data.accessToken);
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('login', data?.user?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('login', error);
     }
   });
 
   document.getElementById('meBtn').addEventListener('click', async () => {
     try {
-      renderJson('result', await requestJson('GET', `${getApiBase()}/auth/me`));
+      const data = await requestJson('GET', `${getApiBase()}/auth/me`);
+      renderJson('result', data);
       await refreshReference();
+      notifySuccess('get_me', data?.user?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('get_me', error);
     }
   });
 
@@ -58,8 +66,10 @@
       const data = await requestJson('POST', `${getApiBase()}/auth/logout`, {});
       clearToken();
       renderJson('result', data);
+      notifySuccess('logout', 'session_revoked');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('logout', error);
     }
   });
 
@@ -76,14 +86,16 @@
       const verifyData = await requestJson('POST', `${getApiBase()}/auth/wallet/verify`, { walletAddress, message: nonceData.message, signature, purpose: 'link_wallet' });
       renderJson('result', { nonce: nonceData, verify: verifyData });
       await refreshReference();
+      notifySuccess('link_wallet', verifyData?.wallet?.address || walletAddress);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('link_wallet', error);
     }
   });
 
   document.getElementById('addVehicle').addEventListener('click', async () => {
     try {
-      const body = {
+      const data = await requestJson('POST', `${getApiBase()}/api/vehicles`, {
         ownerEmail: requireValue(document.getElementById('ownerEmail').value, 'Can nhap ownerEmail'),
         bienSo: requireValue(document.getElementById('bienSo').value, 'Can nhap bienSo'),
         hangXe: requireValue(document.getElementById('hangXe').value, 'Can nhap hangXe'),
@@ -92,11 +104,13 @@
         giaTheoNgay: parseNonNegativeNumber(document.getElementById('giaTheoNgay').value, 'giaTheoNgay phai >= 0'),
         giaTheoGio: parseNonNegativeNumber(document.getElementById('giaTheoGio').value, 'giaTheoGio phai >= 0'),
         moTa: document.getElementById('moTa').value.trim(),
-      };
-      renderJson('result', await requestJson('POST', `${getApiBase()}/api/vehicles`, body));
+      });
+      renderJson('result', data);
       await refreshReference();
+      notifySuccess('add_vehicle', data?.id || data?.bienso || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('add_vehicle', error);
     }
   });
 
@@ -115,8 +129,10 @@
       if (data.id) document.getElementById('bookingId').value = data.id;
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('create_booking', data?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('create_booking', error);
     }
   });
 
@@ -132,18 +148,23 @@
       if (contract?.chuxeid) document.getElementById('ownerId').value = contract.chuxeid;
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('create_contract', contract?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('create_contract', error);
     }
   });
 
   document.getElementById('lockDeposit').addEventListener('click', async () => {
     try {
       const contractId = requireValue(document.getElementById('lockContractId').value, 'Can nhap contractId');
-      renderJson('result', await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/lock-deposit`));
+      const data = await requestJson('POST', `${getApiBase()}/api/contracts/${contractId}/lock-deposit`);
+      renderJson('result', data);
       await refreshReference();
+      notifySuccess('lock_deposit', data?.transaction?.txHash || contractId);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('lock_deposit', error);
     }
   });
 
@@ -158,8 +179,10 @@
       });
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('return_vehicle', data?.transaction?.txHash || contractId);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('return_vehicle', error);
     }
   });
 
@@ -180,8 +203,10 @@
       }
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('damage_claim', data?.dispute?.id || 'ok');
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('damage_claim', error);
     }
   });
 
@@ -195,8 +220,10 @@
       });
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('admin_confirm_no_damage', disputeId);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('admin_confirm_no_damage', error);
     }
   });
 
@@ -211,8 +238,10 @@
       });
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('admin_confirm_damage', disputeId);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('admin_confirm_damage', error);
     }
   });
 
@@ -225,8 +254,77 @@
       });
       renderJson('result', data);
       await refreshReference();
+      notifySuccess('settle_contract', data?.transactions?.[0]?.txHash || contractId);
     } catch (error) {
       renderJson('result', { error: error.message });
+      notifyError('settle_contract', error);
     }
   });
+
+  const walletsBtn = document.getElementById('loadWalletsOverviewBtn');
+  if (walletsBtn) {
+    walletsBtn.addEventListener('click', async () => {
+      try {
+        const data = await requestJson('GET', `${getApiBase()}/api/wallets/overview`);
+        renderJson('result', data);
+        notifySuccess('wallets_overview', `count=${data?.wallets?.length || 0}`);
+      } catch (error) {
+        renderJson('result', { error: error.message });
+        notifyError('wallets_overview', error);
+      }
+    });
+  }
+
+  const financeSummaryBtn = document.getElementById('loadFinanceSummaryBtn');
+  if (financeSummaryBtn) {
+    financeSummaryBtn.addEventListener('click', async () => {
+      try {
+        const data = await requestJson('GET', `${getApiBase()}/api/finance/summary`);
+        renderJson('result', data);
+        notifySuccess('finance_summary', `fees=${data?.totalPlatformFeesCollected || 0}`);
+      } catch (error) {
+        renderJson('result', { error: error.message });
+        notifyError('finance_summary', error);
+      }
+    });
+  }
+
+  const financeTransactionsBtn = document.getElementById('loadFinanceTransactionsBtn');
+  if (financeTransactionsBtn) {
+    financeTransactionsBtn.addEventListener('click', async () => {
+      try {
+        const params = new URLSearchParams();
+        const walletAddress = document.getElementById('financeWalletAddress').value.trim();
+        const txType = document.getElementById('financeTxType').value.trim();
+        const contractId = document.getElementById('financeContractId').value.trim();
+        const disputeId = document.getElementById('financeDisputeId').value.trim();
+        if (walletAddress) params.set('walletAddress', walletAddress);
+        if (txType) params.set('txType', txType);
+        if (contractId) params.set('contractId', contractId);
+        if (disputeId) params.set('disputeId', disputeId);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        const data = await requestJson('GET', `${getApiBase()}/api/finance/transactions${query}`);
+        renderJson('result', data);
+        notifySuccess('finance_transactions', `count=${data?.count || 0}`);
+      } catch (error) {
+        renderJson('result', { error: error.message });
+        notifyError('finance_transactions', error);
+      }
+    });
+  }
+
+  const moneyFlowBtn = document.getElementById('loadMoneyFlowBtn');
+  if (moneyFlowBtn) {
+    moneyFlowBtn.addEventListener('click', async () => {
+      try {
+        const contractId = requireValue(document.getElementById('moneyFlowContractId').value, 'Can nhap contractId');
+        const data = await requestJson('GET', `${getApiBase()}/api/contracts/${contractId}/money-flow`);
+        renderJson('result', data);
+        notifySuccess('contract_money_flow', contractId);
+      } catch (error) {
+        renderJson('result', { error: error.message });
+        notifyError('contract_money_flow', error);
+      }
+    });
+  }
 });
