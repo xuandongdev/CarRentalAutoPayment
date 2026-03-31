@@ -1,0 +1,64 @@
+{
+  "blockHeight": 31,
+  "timestamp": "2026-03-31T07:13:04.433957+00:00",
+  "previousHash": "951d4377a506b95aed9a3c3cc6e7be88fe4ff9200dc54339af3d530aa0739dd4",
+  "nonce": 0,
+  "merkleRoot": "b89c91898e63c6ff0bbedd24b89a0391b1624f33606916f1649b209b95b38b3a",
+  "transactionCount": 2,
+  "transactions": [
+    {
+      "txHash": "TX79ACB5BEC055",
+      "txType": "LOCK_DEPOSIT",
+      "dataHash": "f3552e077ebd19ab97b8245e9370ed0e5eb858a3f99a661c0412e41b19965c92",
+      "fromAddress": "0xc8f26d3b980286b752fabdbc19aabcfe9c3b76ff",
+      "toAddress": "0xSYSTEMESCROW",
+      "amount": 6000000.0,
+      "timestamp": "2026-03-31T07:13:03.927143+00:00",
+      "signature": "4b83cdc5c7f19d160ce6462ae97baf0a12c28e29c5f089f1dd605441689f8d84",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "235e0a56-707d-4b5e-9041-310f15b5e4a1",
+        "tienCocId": "0d67350a-a387-4b2c-bd91-a3c78a3a712f",
+        "tranhChapId": null,
+        "businessAction": "lockDeposit",
+        "grossAmount": 6000000.0,
+        "feeAmount": 0.0,
+        "netAmount": 6000000.0,
+        "feeRate": 0.1,
+        "balancesSeededManually": true,
+        "note": "Deposit/withdraw real payment gateway not implemented; balances are seeded manually for blockchain flow testing.",
+        "action": "khoaCoc"
+      },
+      "blockHeight": 31,
+      "blockHash": "baccf2b2beebaf2e07efd548ee2355ac620aa336c4e22176a96dabc7b6c2dee0",
+      "txIndex": 0
+    },
+    {
+      "txHash": "TX5999F44AF642",
+      "txType": "ESCROW_LOCK",
+      "dataHash": "379feb5ffd2a98194a49b9d48ff55df9d4f9742b217912879f7083584c87d68d",
+      "fromAddress": "0xc8f26d3b980286b752fabdbc19aabcfe9c3b76ff",
+      "toAddress": "0xSYSTEMESCROW",
+      "amount": 6000000.0,
+      "timestamp": "2026-03-31T07:13:03.927304+00:00",
+      "signature": "3c7f67febf2d3fe358b84cb83690b0e915b0a89a4b3bd06319bfcd3b44946f37",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "235e0a56-707d-4b5e-9041-310f15b5e4a1",
+        "tienCocId": "0d67350a-a387-4b2c-bd91-a3c78a3a712f",
+        "tranhChapId": null,
+        "businessAction": "escrowLock",
+        "grossAmount": 6000000.0,
+        "feeAmount": 0.0,
+        "netAmount": 6000000.0,
+        "feeRate": 0.1,
+        "balancesSeededManually": true,
+        "note": "Deposit/withdraw real payment gateway not implemented; balances are seeded manually for blockchain flow testing."
+      },
+      "blockHeight": 31,
+      "blockHash": "baccf2b2beebaf2e07efd548ee2355ac620aa336c4e22176a96dabc7b6c2dee0",
+      "txIndex": 1
+    }
+  ],
+  "hash": "baccf2b2beebaf2e07efd548ee2355ac620aa336c4e22176a96dabc7b6c2dee0"
+}

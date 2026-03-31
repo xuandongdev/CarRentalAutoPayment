@@ -526,6 +526,21 @@ class RentalAppService:
         if current != target:
             self.update("vehicles", "id", vehicle_id, {"trangthai": target, "capnhatluc": now_iso()})
 
+    def _complete_booking_for_contract(self, contract: dict):
+        booking_id = contract.get("dangkyid")
+        if not booking_id:
+            return
+        booking = self.maybe_one("bookings", id=booking_id)
+        if booking is None:
+            return
+        current_status = booking.get("trangthai")
+        if current_status not in {"choXacNhan", "daDuyet", "daTaoHopDong"}:
+            return
+        self.update("bookings", "id", booking_id, {
+            "trangthai": "hoanTat",
+            "capnhatluc": now_iso(),
+        })
+
     def _active_user_wallet(self, user_id: str) -> Optional[dict]:
         wallets = self.t("wallets").select("*").eq("nguoidungid", user_id).limit(20).execute().data or []
         if not wallets:
@@ -1082,6 +1097,7 @@ class RentalAppService:
             "summaryhash": decision_hash,
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
         self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("admin_confirm_no_damage_success", disputeId=dispute_id, blockHeight=block.get("blockHeight"), refundTx=txs[1].get("txHash"), refundAmount=self._to_number(locked))
         return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
@@ -1281,6 +1297,7 @@ class RentalAppService:
             "summaryhash": decision_hash,
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
         self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("admin_confirm_damage_success", disputeId=dispute_id, blockHeight=block.get("blockHeight"), gross=self._to_number(approved_cost), fee=self._to_number(split["fee_amount"]), net=self._to_number(split["net_amount"]), refund=self._to_number(refund))
         return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
@@ -1396,6 +1413,7 @@ class RentalAppService:
             "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daHoan" if refund > ZERO and deposit_payout_gross == ZERO else "daTatToan"),
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
         self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("settle_contract_success", contractId=contract_id, blockHeight=block.get("blockHeight"), rentalGross=self._to_number(rental_gross), rentalFee=self._to_number(rental_split["fee_amount"]), rentalNet=self._to_number(rental_split["net_amount"]), depositPayoutGross=self._to_number(deposit_payout_gross), refund=self._to_number(refund))
         return {"block": block, "transactions": txs, "hopDongThue": contract, "tienCoc": deposit, "mirror": mine_result["mirror"]}
