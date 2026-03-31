@@ -175,6 +175,64 @@ function pickPrimaryWallet(wallets) {
   return list.find((w) => String(w?.status || '').toLowerCase() === 'active') || list[0];
 }
 
+let profileEscHandler = null;
+
+function fallbackText(value, placeholder = 'Chưa cập nhật') {
+  const text = String(value ?? '').trim();
+  return text || placeholder;
+}
+
+function formatDateTime(value, placeholder = 'Chưa có dữ liệu') {
+  const text = String(value ?? '').trim();
+  if (!text) return placeholder;
+  const formatted = formatDate(text);
+  return formatted || placeholder;
+}
+
+function truncateAddress(value, start = 8, end = 6) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  if (text.length <= start + end + 3) return text;
+  return `${text.slice(0, start)}...${text.slice(-end)}`;
+}
+
+function roleMeta(role) {
+  const key = normalizeRole(role);
+  const map = {
+    khach: { label: 'Khách', cls: 'neutral' },
+    chuxe: { label: 'Chủ xe', cls: 'pending' },
+    admin: { label: 'Admin', cls: 'ok' },
+  };
+  return map[key] || { label: fallbackText(role, 'Chưa cập nhật'), cls: 'neutral' };
+}
+
+function userStatusMeta(status) {
+  const key = String(status || '').trim().toLowerCase();
+  const map = {
+    hoatdong: { label: 'Hoạt động', cls: 'ok' },
+    tamkhoa: { label: 'Tạm khóa', cls: 'pending' },
+    ngunghoatdong: { label: 'Ngừng hoạt động', cls: 'danger' },
+  };
+  return map[key] || { label: fallbackText(status, 'Chưa cập nhật'), cls: 'neutral' };
+}
+
+function walletStatusMeta(status) {
+  const key = String(status || '').trim().toLowerCase();
+  const map = {
+    active: { label: 'Active', cls: 'ok' },
+    locked: { label: 'Locked', cls: 'pending' },
+    inactive: { label: 'Inactive', cls: 'danger' },
+  };
+  return map[key] || { label: fallbackText(status, 'Chưa cập nhật'), cls: 'neutral' };
+}
+
+function walletTypeLabel(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'user') return 'User';
+  if (key === 'system') return 'System';
+  return fallbackText(value, 'Chưa cập nhật');
+}
+
 function ensureProfileRoot() {
   let root = document.getElementById('userProfileRoot');
   if (root) return root;
@@ -185,6 +243,10 @@ function ensureProfileRoot() {
 }
 
 function closeProfileModal() {
+  if (profileEscHandler) {
+    document.removeEventListener('keydown', profileEscHandler);
+    profileEscHandler = null;
+  }
   const root = document.getElementById('userProfileRoot');
   if (root) root.innerHTML = '';
 }
@@ -194,51 +256,131 @@ function openProfileModal(session) {
   const wallets = Array.isArray(session?.wallets) ? session.wallets : [];
   const primaryWallet = pickPrimaryWallet(wallets);
   const role = String(user?.vaiTro || '').trim() || 'guest';
+  const roleInfo = roleMeta(role);
+  const userStatus = userStatusMeta(user?.trangThai);
+  const walletStatus = walletStatusMeta(primaryWallet?.status);
+  const walletAddress = String(primaryWallet?.address || '').trim();
+  const walletAddressDisplay = walletAddress ? truncateAddress(walletAddress) : 'Chưa liên kết ví';
+  const walletSyncAt = primaryWallet?.syncat || primaryWallet?.syncAt || '';
+  const walletType = primaryWallet?.wallettype || primaryWallet?.walletType || '';
+  const profileFields = [
+    { label: 'Họ tên', value: fallbackText(user?.hoTen), important: true },
+    { label: 'Email', value: fallbackText(user?.email), long: true },
+    { label: 'Số điện thoại', value: fallbackText(user?.soDienThoai) },
+    { label: 'Địa chỉ', value: fallbackText(user?.diaChi), long: true },
+    { label: 'CCCD', value: fallbackText(maskCccd(user?.cccd), 'Chưa cập nhật') },
+    { label: 'Điểm đánh giá', value: fallbackText(user?.diemDanhGiaTb, '0') },
+    { label: 'Lần đăng nhập cuối', value: formatDateTime(user?.lanDangNhapCuoi), long: true },
+  ];
   const root = ensureProfileRoot();
   root.innerHTML = `
-    <div class="profile-overlay">
-      <div class="profile-card">
+    <div class="profile-overlay" id="profileOverlay">
+      <div class="profile-card" role="dialog" aria-modal="true" aria-labelledby="userProfileTitle">
         <div class="profile-header">
-          <h3>Thông tin người dùng</h3>
+          <div>
+            <h3 id="userProfileTitle">Thông tin người dùng</h3>
+            <p class="profile-subtitle">Thông tin hồ sơ và ví liên kết của tài khoản hiện tại.</p>
+          </div>
           <button id="profileCloseBtn" type="button" class="profile-close" aria-label="Đóng">×</button>
         </div>
-        <div class="profile-grid">
-          <div class="kv"><span>Họ tên</span><strong>${escapeHtml(user?.hoTen || '')}</strong></div>
-          <div class="kv"><span>Email</span><strong>${escapeHtml(user?.email || '')}</strong></div>
-          <div class="kv"><span>Số điện thoại</span><strong>${escapeHtml(user?.soDienThoai || '')}</strong></div>
-          <div class="kv"><span>Vai trò</span><strong>${statusBadge(role)}</strong></div>
-          <div class="kv"><span>Trạng thái</span><strong>${statusBadge(user?.trangThai || '')}</strong></div>
-          <div class="kv"><span>Địa chỉ</span><strong>${escapeHtml(user?.diaChi || '')}</strong></div>
-          <div class="kv"><span>CCCD</span><strong>${escapeHtml(maskCccd(user?.cccd))}</strong></div>
-          <div class="kv"><span>Điểm đánh giá</span><strong>${escapeHtml(String(user?.diemDanhGiaTb ?? '0'))}</strong></div>
-          <div class="kv"><span>Lần đăng nhập cuối</span><strong>${escapeHtml(formatDate(user?.lanDangNhapCuoi || ''))}</strong></div>
-        </div>
-        <h4>Ví người dùng</h4>
-        ${
-          primaryWallet
-            ? `
-              <div class="wallet-panel">
-                <div class="wallet-row"><span>Địa chỉ</span><strong>${escapeHtml(primaryWallet.address || '')}</strong></div>
-                <div class="wallet-row"><span>Trạng thái</span><strong>${statusBadge(primaryWallet.status || '')}</strong></div>
-                <div class="wallet-row"><span>Loại ví</span><strong>${escapeHtml(primaryWallet.wallettype || primaryWallet.walletType || '')}</strong></div>
-                <div class="wallet-row"><span>Số dư</span><strong>${escapeHtml(formatMoney(primaryWallet.balance || 0))}</strong></div>
-                <div class="wallet-row"><span>Đang khóa</span><strong>${escapeHtml(formatMoney(primaryWallet.lockedbalance || primaryWallet.lockedBalance || 0))}</strong></div>
-                <div class="wallet-row"><span>Lần sync</span><strong>${escapeHtml(formatDate(primaryWallet.syncat || primaryWallet.syncAt || ''))}</strong></div>
-                <button type="button" class="btn-link secondary" id="copyWalletAddressBtn">Copy địa chỉ ví</button>
+        <div class="profile-body">
+          <section class="profile-section">
+            <h4>Hồ sơ người dùng</h4>
+            <div class="profile-highlight-row">
+              <div class="profile-highlight">
+                <span class="info-label">Vai trò</span>
+                <div class="info-value"><span class="badge ${roleInfo.cls} profile-badge">${escapeHtml(roleInfo.label)}</span></div>
               </div>
-            `
-            : '<p class="note">Chưa có ví liên kết cho tài khoản này.</p>'
-        }
+              <div class="profile-highlight">
+                <span class="info-label">Trạng thái</span>
+                <div class="info-value"><span class="badge ${userStatus.cls} profile-badge">${escapeHtml(userStatus.label)}</span></div>
+              </div>
+            </div>
+            <div class="profile-grid">
+              ${profileFields
+                .map(
+                  (field) => `
+                  <div class="info-item ${field.important ? 'info-item-important' : ''}">
+                    <span class="info-label">${escapeHtml(field.label)}</span>
+                    <div class="info-value ${field.long ? 'text-break' : ''}" title="${escapeHtml(field.value)}">${escapeHtml(field.value)}</div>
+                  </div>
+                `
+                )
+                .join('')}
+            </div>
+          </section>
+
+          <section class="profile-section">
+            <h4>Ví người dùng</h4>
+            ${
+              primaryWallet
+                ? `
+                <div class="wallet-summary">
+                  <span class="info-label">Số dư khả dụng</span>
+                  <div class="wallet-balance">${escapeHtml(formatMoney(primaryWallet.balance || 0))}</div>
+                </div>
+                <div class="wallet-panel">
+                  <div class="wallet-row wallet-address-row">
+                    <span class="wallet-label">Địa chỉ ví</span>
+                    <div class="wallet-value wallet-address">
+                      <span class="wallet-address-text" title="${escapeHtml(walletAddress || 'Chưa liên kết ví')}">${escapeHtml(walletAddressDisplay)}</span>
+                      <button type="button" class="wallet-copy-btn" id="copyWalletAddressBtn" aria-label="Sao chép địa chỉ ví">Copy</button>
+                      <span class="wallet-copy-feedback" id="walletCopyFeedback" aria-live="polite"></span>
+                    </div>
+                  </div>
+                  <div class="wallet-row">
+                    <span class="wallet-label">Trạng thái</span>
+                    <div class="wallet-value"><span class="badge ${walletStatus.cls} profile-badge">${escapeHtml(walletStatus.label)}</span></div>
+                  </div>
+                  <div class="wallet-row">
+                    <span class="wallet-label">Loại ví</span>
+                    <div class="wallet-value">${escapeHtml(walletTypeLabel(walletType))}</div>
+                  </div>
+                  <div class="wallet-row">
+                    <span class="wallet-label">Số dư đang khóa</span>
+                    <div class="wallet-value">${escapeHtml(formatMoney(primaryWallet.lockedbalance || primaryWallet.lockedBalance || 0))}</div>
+                  </div>
+                  <div class="wallet-row">
+                    <span class="wallet-label">Lần đồng bộ gần nhất</span>
+                    <div class="wallet-value text-break" title="${escapeHtml(formatDateTime(walletSyncAt))}">${escapeHtml(formatDateTime(walletSyncAt))}</div>
+                  </div>
+                </div>
+              `
+                : `
+                <div class="wallet-empty-card">
+                  <strong>Chưa liên kết ví</strong>
+                  <p class="note">Tài khoản này chưa có ví khả dụng để hiển thị số dư và trạng thái.</p>
+                </div>
+              `
+            }
+          </section>
+        </div>
+        <div class="profile-footer">
+          <button type="button" class="btn-link secondary profile-close-btn" id="profileFooterCloseBtn">Đóng</button>
+        </div>
       </div>
     </div>
   `;
   document.getElementById('profileCloseBtn')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profileFooterCloseBtn')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profileOverlay')?.addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) closeProfileModal();
+  });
+  profileEscHandler = (event) => {
+    if (event.key === 'Escape') closeProfileModal();
+  };
+  document.addEventListener('keydown', profileEscHandler);
   document.getElementById('copyWalletAddressBtn')?.addEventListener('click', async () => {
-    const address = primaryWallet?.address || '';
+    const address = walletAddress;
+    const feedback = document.getElementById('walletCopyFeedback');
     if (!address) return;
     try {
       await navigator.clipboard.writeText(address);
-      toast('Đã copy địa chỉ ví.', 'success');
+      if (feedback) {
+        feedback.textContent = 'Đã sao chép';
+        window.setTimeout(() => { if (feedback) feedback.textContent = ''; }, 1800);
+      }
+      toast('Đã sao chép địa chỉ ví.', 'success');
     } catch (_error) {
       toast('Không thể copy địa chỉ ví trên trình duyệt này.', 'error');
     }
