@@ -1,0 +1,10 @@
+cd "d:\6. Blockchain\blockchain_code\code\CarRentalAutoPayment\backend2"
+
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+lệnh cài môt trường, đã cài rồi không cần chạy: pip install -r requirements.txt
+
+python server.py
+
+http://127.0.0.1:8000/docs

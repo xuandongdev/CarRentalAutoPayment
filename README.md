@@ -2,6 +2,9 @@
 
 Tài liệu này mô tả vai trò từng file và luồng xử lý nghiệp vụ thuê xe theo đúng code hiện tại.
 
+
+
+
 ---
 
 ## 1) Vai trò từng file
@@ -288,3 +291,11 @@ Tiện ích hash dùng chung:
    ]
 }
 ```
+
+
+cd "d:\6. Blockchain\blockchain_code\code\CarRentalAutoPayment\backend2"
+.\.venv\Scripts\Activate.ps1
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+python server.py

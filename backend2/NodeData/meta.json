@@ -1,7 +1,7 @@
 {
   "chainId": "carRentalAutoPayment",
-  "latestBlockHeight": 19,
-  "latestBlockHash": "d6408ce67ce77229a217c8517cf33668c907f7585605bafdeec95338457f7599",
+  "latestBlockHeight": 30,
+  "latestBlockHash": "951d4377a506b95aed9a3c3cc6e7be88fe4ff9200dc54339af3d530aa0739dd4",
   "createdAt": "2026-03-29T06:01:02.459116+00:00",
-  "updatedAt": "2026-03-29T16:35:42.860002+00:00"
+  "updatedAt": "2026-03-31T05:55:59.893151+00:00"
 }

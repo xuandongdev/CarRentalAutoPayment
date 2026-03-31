@@ -1,0 +1,7 @@
+{
+  "txHash": "TX54A6724A41C2",
+  "blockHeight": 20,
+  "blockHash": "603e2dbc844474055c654f307bf6ca348e67cfb125526f84ad43abca486a94ce",
+  "txIndex": 1,
+  "txType": "ESCROW_LOCK"
+}

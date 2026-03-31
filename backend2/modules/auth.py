@@ -123,6 +123,10 @@ class AuthService:
             "soDienThoai": user.get("sodienthoai") or user.get("soDienThoai"),
             "vaiTro": user.get("vaitro") or user.get("vaiTro"),
             "trangThai": user.get("trangthai") or user.get("trangThai"),
+            "diaChi": user.get("diachi") or user.get("diaChi"),
+            "cccd": user.get("cccd"),
+            "diemDanhGiaTb": user.get("diemdanhgiatb") or user.get("diemDanhGiaTb"),
+            "lanDangNhapCuoi": user.get("landangnhapcuoi") or user.get("lanDangNhapCuoi"),
         }
 
     def _active_session(self, jti: str) -> Optional[dict]:
@@ -182,8 +186,13 @@ class AuthService:
         if user is None or not self._verify_password(req.password, user.get("mkhash", "")):
             self._log_auth_event("login_failed", identifier=req.identifier, reason="invalid_credentials")
             raise ValueError("Thong tin dang nhap khong hop le")
-        if (user.get("trangthai") or user.get("trangThai")) != "hoatDong":
-            self._log_auth_event("login_failed", identifier=req.identifier, userId=user.get("id"), reason="inactive_user")
+        trang_thai = (user.get("trangthai") or user.get("trangThai"))
+        if trang_thai != "hoatDong":
+            self._log_auth_event("login_failed", identifier=req.identifier, userId=user.get("id"), reason=f"inactive_user:{trang_thai}")
+            if trang_thai == "tamKhoa":
+                raise ValueError("Tai khoan dang tam khoa")
+            if trang_thai == "ngungHoatDong":
+                raise ValueError("Tai khoan da ngung hoat dong")
             raise ValueError("Tai khoan khong o trang thai cho phep dang nhap")
 
         self.update("users", "id", user["id"], {"landangnhapcuoi": now_iso(), "capnhatluc": now_iso()})

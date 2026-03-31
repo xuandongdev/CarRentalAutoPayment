@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,16 +15,18 @@ from modules.models import (
     AddVehicleRequest,
     AdminConfirmDamageRequest,
     AdminConfirmNoDamageRequest,
+    CreateAvailabilityRequest,
     CreateBookingRequest,
     CreateContractRequest,
     CreateDamageClaimRequest,
     ReturnVehicleRequest,
     SettleContractRequest,
+    UpdateVehicleStatusRequest,
 )
 from modules.node_storage import LocalNodeStorage
 from modules.service import RentalAppService
 
-app = FastAPI(title="Car Rental Demo Server", version="1.3.0")
+app = FastAPI(title="Car Rental Demo Server", version="2.0.0")
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
 if frontend_dir.exists():
     app.mount("/frontend", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
@@ -51,7 +54,12 @@ def require_auth_service() -> AuthService:
 
 
 def get_current_user(token: str = Depends(extract_bearer_token)) -> dict:
-    return require_auth_service().get_current_user(token)
+    try:
+        return require_auth_service().get_current_user(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Khong the xac thuc nguoi dung do loi ket noi dich vu: {exc}")
 
 
 def require_active_user(current_user: dict = Depends(get_current_user)) -> dict:
@@ -70,6 +78,14 @@ def optional_current_user(authorization: Optional[str] = Header(default=None)) -
 def _user_role(current_user: dict) -> str:
     user = current_user["user"]
     return str(user.get("vaitro") or user.get("vaiTro") or "").strip().lower()
+
+
+def _dashboard_path_by_role(role: str) -> str:
+    if role == "admin":
+        return "/admin/dashboard"
+    if role == "chuxe":
+        return "/owner/dashboard"
+    return "/renter/dashboard"
 
 
 def _require_roles(current_user: dict, *roles: str) -> dict:
@@ -92,21 +108,27 @@ def _require_same_user_or_admin(current_user: dict, expected_user_id: Optional[s
         raise HTTPException(status_code=403, detail=detail)
 
 
-def _require_same_identifier_or_admin(current_user: dict, *, email: Optional[str] = None, phone: Optional[str] = None, detail: str):
-    if _is_admin(current_user):
-        return
-    user = current_user["user"]
-    current_email = (user.get("email") or "").strip().lower()
-    current_phone = (user.get("sodienthoai") or user.get("soDienThoai") or "").strip()
-    if email and current_email and current_email == email.strip().lower():
-        return
-    if phone and current_phone and current_phone == phone.strip():
-        return
-    raise HTTPException(status_code=403, detail=detail)
-
-
 def _require_admin(current_user: dict = Depends(require_active_user)) -> dict:
     return _require_roles(current_user, "admin")
+
+
+def _redirect_frontend(path: str, params: Optional[dict] = None) -> RedirectResponse:
+    url = f"/frontend/{path}"
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    return RedirectResponse(url=url)
+
+
+def _guest_only_page(path: str, current_user: Optional[dict]) -> RedirectResponse:
+    # Token hien dang duoc luu o localStorage, server khong nhin thay Authorization
+    # khi browser GET page route. Vi vay route HTML luon tra ve trang frontend;
+    # guest/auth redirect se duoc xu ly o frontend qua /auth/me.
+    return _redirect_frontend(path)
+
+
+def _role_page(path: str, current_user: Optional[dict], *allowed_roles: str) -> RedirectResponse:
+    # Xem ghi chu trong _guest_only_page: page guard do frontend dam nhan.
+    return _redirect_frontend(path)
 
 
 def _filter_overview_for_user(overview: dict, current_user: dict) -> dict:
@@ -152,17 +174,192 @@ def _filter_overview_for_user(overview: dict, current_user: dict) -> dict:
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return HTML_PAGE
+    return _redirect_frontend("index.html")
 
 
 @app.get("/home")
 def home_redirect():
-    return RedirectResponse(url="/frontend/index.html")
+    return RedirectResponse(url="/")
 
 
 @app.get("/test")
 def test_redirect():
-    return RedirectResponse(url="/frontend/index.html")
+    return RedirectResponse(url="/admin/debug")
+
+
+@app.get("/legacy", response_class=HTMLResponse)
+def legacy_index():
+    return HTML_PAGE
+
+
+@app.get("/login")
+def login_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _guest_only_page("login.html", current_user)
+
+
+@app.get("/register")
+def register_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _guest_only_page("register.html", current_user)
+
+
+@app.get("/vehicles")
+def vehicles_page():
+    return _redirect_frontend("vehicles.html")
+
+
+@app.get("/vehicles/{vehicle_id}")
+def vehicle_detail_page(vehicle_id: str):
+    return _redirect_frontend("vehicle-detail.html", {"id": vehicle_id})
+
+
+@app.get("/owner/dashboard")
+def owner_dashboard_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/dashboard.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/vehicles")
+def owner_vehicles_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/vehicles.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/vehicles/new")
+def owner_vehicles_new_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/vehicles.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/vehicles/{vehicle_id}")
+def owner_vehicle_detail_page(vehicle_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/vehicles.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/availability")
+def owner_availability_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/availability.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/contracts")
+def owner_contracts_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/contracts.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/contracts/{contract_id}")
+def owner_contract_detail_page(contract_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/contracts.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/damages")
+def owner_damages_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/disputes.html", current_user, "chuxe", "admin")
+
+
+@app.get("/owner/disputes")
+def owner_disputes_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/disputes.html", current_user, "chuxe", "admin")
+
+
+@app.get("/renter/dashboard")
+def renter_dashboard_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/dashboard.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/vehicles")
+def renter_vehicles_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/vehicles.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/vehicles/{vehicle_id}")
+def renter_vehicle_detail_page(vehicle_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/vehicles.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/bookings")
+def renter_bookings_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/bookings.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/bookings/{booking_id}")
+def renter_booking_detail_page(booking_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/bookings.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/contracts")
+def renter_contracts_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/contracts.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/contracts/{contract_id}")
+def renter_contract_detail_page(contract_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/contracts.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/deposits")
+def renter_deposits_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/deposits.html", current_user, "khach", "admin")
+
+
+@app.get("/renter/returns")
+def renter_returns_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("renter/contracts.html", current_user, "khach", "admin")
+
+
+@app.get("/admin/dashboard")
+def admin_dashboard_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/dashboard.html", current_user, "admin")
+
+
+@app.get("/admin/users")
+def admin_users_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/users.html", current_user, "admin")
+
+
+@app.get("/admin/vehicles")
+def admin_vehicles_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/vehicles.html", current_user, "admin")
+
+
+@app.get("/admin/bookings")
+def admin_bookings_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/bookings.html", current_user, "admin")
+
+
+@app.get("/admin/contracts")
+def admin_contracts_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/contracts.html", current_user, "admin")
+
+
+@app.get("/admin/disputes")
+def admin_disputes_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/disputes.html", current_user, "admin")
+
+
+@app.get("/admin/chain")
+def admin_chain_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/chain.html", current_user, "admin")
+
+
+@app.get("/admin/debug")
+def admin_debug_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("admin/debug.html", current_user, "admin")
+
+
+@app.get("/finance")
+def finance_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("finance/index.html", current_user, "admin")
+
+
+@app.get("/finance/contracts/{contract_id}")
+def finance_contract_page(contract_id: str, current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("finance/index.html", current_user, "admin")
+
+
+@app.get("/chain")
+def chain_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("finance/chain.html", current_user, "admin")
+
+
+@app.get("/blockchain")
+def blockchain_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("finance/chain.html", current_user, "admin")
 
 
 @app.post("/auth/register")
@@ -245,6 +442,26 @@ def api_overview(current_user: dict = Depends(require_active_user)):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.get("/api/dashboard")
+def api_dashboard(current_user: dict = Depends(require_active_user)):
+    try:
+        overview = _filter_overview_for_user(require_service().overview(), current_user)
+        role = _user_role(current_user)
+        return {
+            "role": role,
+            "user": current_user["user"],
+            "stats": {
+                "vehicles": len(overview.get("vehicles") or []),
+                "bookings": len(overview.get("bookings") or []),
+                "contracts": len(overview.get("contracts") or []),
+                "deposits": len(overview.get("deposits") or []),
+                "disputes": len(overview.get("disputes") or []),
+            },
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @app.get("/api/node/chain")
 def api_chain(current_user: dict = Depends(require_active_user)):
     return node_storage.export_chain()
@@ -263,6 +480,216 @@ def api_reconcile_chain(current_user: dict = Depends(_require_admin)):
 @app.get("/api/node/reconcile")
 def api_reconcile_chain_get(current_user: dict = Depends(_require_admin)):
     return api_reconcile_chain(current_user)
+
+
+@app.get("/api/vehicles/public")
+def api_public_vehicles():
+    try:
+        return {"items": require_service().list_public_vehicles()}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/vehicles")
+def api_add_vehicle(req: AddVehicleRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return require_service().add_vehicle(current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/owner/vehicles")
+def api_owner_vehicles(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return {"items": require_service().list_owner_vehicles(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.patch("/api/admin/vehicles/{vehicle_id}/status")
+def api_admin_update_vehicle_status(vehicle_id: str, req: UpdateVehicleStatusRequest, current_user: dict = Depends(_require_admin)):
+    try:
+        return require_service().update_vehicle_status(vehicle_id, req.trangthai)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/owner/availability")
+def api_add_owner_availability(req: CreateAvailabilityRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return require_service().add_availability(
+            owner_id=current_user["user"]["id"],
+            xe_id=req.xeid,
+            ngay_bat_dau=req.ngaybatdau,
+            ngay_ket_thuc=req.ngayketthuc,
+            con_trong=req.controng,
+            ghi_chu=req.ghichu,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/owner/availability")
+def api_owner_availability(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return {"items": require_service().list_owner_availability(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/bookings")
+def api_create_booking(req: CreateBookingRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "khach", "admin")
+        return require_service().create_booking(current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/renter/bookings")
+def api_renter_bookings(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "khach", "admin")
+        return {"items": require_service().list_renter_bookings(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/from-booking")
+def api_create_contract_from_booking(req: CreateContractRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        booking = require_service().one("bookings", id=req.dangkyid)
+        _require_same_user_or_admin(current_user, booking.get("nguoidungid"), "Chi nguoi thue hoac admin moi duoc tao contract tu booking nay")
+        return require_service().create_contract_from_booking(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/create")
+def api_create_contract(req: CreateContractRequest, current_user: dict = Depends(require_active_user)):
+    return api_create_contract_from_booking(req, current_user)
+
+
+@app.get("/api/renter/contracts")
+def api_renter_contracts(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "khach", "admin")
+        return {"items": require_service().list_contracts_for_user(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/owner/contracts")
+def api_owner_contracts(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return {"items": require_service().list_contracts_for_user(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/lock-deposit")
+def api_lock_deposit(contract_id: str, current_user: dict = Depends(require_active_user)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc khoa coc")
+        return require_service().lock_deposit(contract_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/return-vehicle")
+def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc tra xe")
+        return require_service().return_vehicle(contract_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/damage-claim")
+def api_damage_claim(contract_id: str, req: CreateDamageClaimRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("chuxeid"), "Chi chu xe hoac admin moi duoc tao damage claim")
+        return require_service().create_damage_claim(contract_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/owner/disputes")
+def api_owner_disputes(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return {"items": require_service().list_disputes_for_owner(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/renter/deposits")
+def api_renter_deposits(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "khach", "admin")
+        return {"items": require_service().list_deposits_for_renter(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/disputes/{dispute_id}/admin-confirm-no-damage")
+def api_admin_confirm_no_damage(dispute_id: str, req: AdminConfirmNoDamageRequest, current_user: dict = Depends(_require_admin)):
+    try:
+        return require_service().admin_confirm_no_damage(dispute_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/disputes/{dispute_id}/admin-confirm-damage")
+def api_admin_confirm_damage(dispute_id: str, req: AdminConfirmDamageRequest, current_user: dict = Depends(_require_admin)):
+    try:
+        return require_service().admin_confirm_damage(dispute_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/settle")
+def api_settle_contract(contract_id: str, req: SettleContractRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        renter_id = contract.get("nguoithueid")
+        owner_id = contract.get("chuxeid")
+        if not _is_admin(current_user) and current_user["user"].get("id") not in {renter_id, owner_id}:
+            raise HTTPException(status_code=403, detail="Chi renter, owner lien quan hoac admin moi duoc tat toan contract")
+        return require_service().settle_contract(
+            contract_id=contract_id,
+            tong_tien_thanh_toan=req.tongtienthanhtoan,
+            tong_tien_hoan_lai=req.tongtienhoanlai,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get("/api/wallets/overview")
@@ -308,127 +735,47 @@ def api_contract_money_flow(contract_id: str, current_user: dict = Depends(requi
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/vehicles")
-def api_add_vehicle(req: AddVehicleRequest, current_user: dict = Depends(require_active_user)):
+@app.get("/api/admin/users")
+def api_admin_users(current_user: dict = Depends(_require_admin)):
     try:
-        _require_roles(current_user, "chuxe", "admin")
-        _require_same_identifier_or_admin(current_user, email=req.owneremail, detail="Owner email phai trung voi tai khoan dang dang nhap")
-        return require_service().add_vehicle(req)
-    except HTTPException:
-        raise
+        rows = require_service().t("users").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/bookings")
-def api_create_booking(req: CreateBookingRequest, current_user: dict = Depends(require_active_user)):
+@app.get("/api/admin/vehicles")
+def api_admin_vehicles(current_user: dict = Depends(_require_admin)):
     try:
-        _require_roles(current_user, "khach", "admin")
-        _require_same_identifier_or_admin(current_user, email=req.renteremail, detail="Renter email phai trung voi tai khoan dang dang nhap")
-        return require_service().create_booking(req)
-    except HTTPException:
-        raise
+        rows = require_service().list_admin_vehicles()
+        return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/contracts/from-booking")
-def api_create_contract_from_booking(req: CreateContractRequest, current_user: dict = Depends(require_active_user)):
+@app.get("/api/admin/bookings")
+def api_admin_bookings(current_user: dict = Depends(_require_admin)):
     try:
-        booking = require_service().one("bookings", id=req.dangkyid)
-        _require_same_user_or_admin(current_user, booking.get("nguoidungid"), "Chi nguoi thue hoac admin moi duoc tao contract tu booking nay")
-        return require_service().create_contract_from_booking(req)
-    except HTTPException:
-        raise
+        rows = require_service().t("bookings").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/contracts/create")
-def api_create_contract(req: CreateContractRequest, current_user: dict = Depends(require_active_user)):
-    return api_create_contract_from_booking(req, current_user)
-
-
-@app.post("/api/contracts/{contract_id}/lock-deposit")
-def api_lock_deposit(contract_id: str, current_user: dict = Depends(require_active_user)):
+@app.get("/api/admin/contracts")
+def api_admin_contracts(current_user: dict = Depends(_require_admin)):
     try:
-        contract = require_service().one("contracts", id=contract_id)
-        _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc khoa coc")
-        return require_service().lock_deposit(contract_id)
-    except HTTPException:
-        raise
+        rows = require_service().t("contracts").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/contracts/{contract_id}/return-vehicle")
-def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user: dict = Depends(require_active_user)):
+@app.get("/api/admin/disputes")
+def api_admin_disputes(current_user: dict = Depends(_require_admin)):
     try:
-        contract = require_service().one("contracts", id=contract_id)
-        _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc tra xe")
-        if not _is_admin(current_user) and req.nguoitraid != current_user["user"].get("id"):
-            raise HTTPException(status_code=403, detail="nguoiTraId phai trung voi tai khoan dang dang nhap")
-        return require_service().return_vehicle(contract_id, req)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/contracts/{contract_id}/damage-claim")
-def api_damage_claim(contract_id: str, req: CreateDamageClaimRequest, current_user: dict = Depends(require_active_user)):
-    try:
-        _require_roles(current_user, "chuxe", "admin")
-        contract = require_service().one("contracts", id=contract_id)
-        _require_same_user_or_admin(current_user, contract.get("chuxeid"), "Chi chu xe hoac admin moi duoc tao damage claim")
-        if not _is_admin(current_user) and req.ownerid != current_user["user"].get("id"):
-            raise HTTPException(status_code=403, detail="ownerId phai trung voi tai khoan dang dang nhap")
-        return require_service().create_damage_claim(contract_id, req)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/disputes/{dispute_id}/admin-confirm-no-damage")
-def api_admin_confirm_no_damage(dispute_id: str, req: AdminConfirmNoDamageRequest, current_user: dict = Depends(_require_admin)):
-    try:
-        if req.adminid != current_user["user"].get("id"):
-            raise HTTPException(status_code=403, detail="adminId phai trung voi tai khoan admin dang dang nhap")
-        return require_service().admin_confirm_no_damage(dispute_id, req)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/disputes/{dispute_id}/admin-confirm-damage")
-def api_admin_confirm_damage(dispute_id: str, req: AdminConfirmDamageRequest, current_user: dict = Depends(_require_admin)):
-    try:
-        if req.adminid != current_user["user"].get("id"):
-            raise HTTPException(status_code=403, detail="adminId phai trung voi tai khoan admin dang dang nhap")
-        return require_service().admin_confirm_damage(dispute_id, req)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/contracts/{contract_id}/settle")
-def api_settle_contract(contract_id: str, req: SettleContractRequest, current_user: dict = Depends(require_active_user)):
-    try:
-        contract = require_service().one("contracts", id=contract_id)
-        renter_id = contract.get("nguoithueid")
-        owner_id = contract.get("chuxeid")
-        if not _is_admin(current_user) and current_user["user"].get("id") not in {renter_id, owner_id}:
-            raise HTTPException(status_code=403, detail="Chi renter, owner lien quan hoac admin moi duoc tat toan contract")
-        return require_service().settle_contract(
-            contract_id=contract_id,
-            tong_tien_thanh_toan=req.tongtienthanhtoan,
-            tong_tien_hoan_lai=req.tongtienhoanlai,
-        )
-    except HTTPException:
-        raise
+        rows = require_service().t("disputes").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -437,3 +784,4 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+

@@ -1,0 +1,65 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tài chính và Chuỗi</title>
+  <link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1">
+</head>
+<body data-page="finance">
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Finance Ops</div>
+      <nav id="sideNav"></nav>
+    </aside>
+    <section class="admin-main">
+      <header class="admin-topbar">
+        <h1>Tài chính và chuỗi</h1>
+        <div id="topNav"></div>
+        <div id="userMeta"></div>
+      </header>
+      <main class="admin-content">
+        <section class="card summary">
+          <div class="kpi"><div class="label">Tổng phí nền tảng</div><div id="kpiFee" class="value">0</div></div>
+          <div class="kpi"><div class="label">Gross volume</div><div id="kpiGross" class="value">0</div></div>
+          <div class="kpi"><div class="label">Net amount</div><div id="kpiNet" class="value">0</div></div>
+          <div class="kpi"><div class="label">Số giao dịch</div><div id="kpiTxToday" class="value">0</div></div>
+          <div class="kpi"><div class="label">Cảnh báo</div><div id="kpiTxPending" class="value">0</div></div>
+          <div class="kpi"><div class="label">Trạng thái sync</div><div id="chainSyncStatus" class="value">-</div></div>
+        </section>
+
+        <section class="card">
+          <form id="financeFiltersForm" class="grid" style="grid-template-columns: repeat(auto-fit,minmax(180px,1fr));">
+            <label>Wallet address<input id="walletAddress"></label>
+            <label>Loại giao dịch<input id="txType" placeholder="VD: PLATFORM_FEE_CHARGED"></label>
+            <label>Trạng thái<select id="txStatus"><option value="">Tất cả</option><option value="pending">pending</option><option value="confirmed">confirmed</option><option value="failed">failed</option><option value="cancelled">cancelled</option></select></label>
+            <label>Hợp đồng<input id="contractId"></label>
+            <label>Tranh chấp<input id="disputeId"></label>
+            <label>Từ ngày<input id="dateFrom" type="date"></label>
+            <label>Đến ngày<input id="dateTo" type="date"></label>
+            <button type="submit">Lọc giao dịch</button>
+          </form>
+          <div id="financeMessage" class="message"></div>
+        </section>
+
+        <section class="card">
+          <h3>Bảng giao dịch</h3>
+          <div id="financeTransactionsTable"></div>
+        </section>
+
+        <section class="card">
+          <h3>Chi tiết giao dịch</h3>
+          <div id="financeTxDetail" class="empty-state">Chọn một giao dịch để xem chi tiết.</div>
+        </section>
+      </main>
+    </section>
+    <aside class="inspector-panel">
+      <h3 id="inspectorTitle">JSON Inspector</h3>
+      <div id="inspectorTabs"></div>
+      <div id="inspectorBody"><pre>{}</pre></div>
+    </aside>
+  </div>
+  <script src="/frontend/app.js?v=20260330_ux1"></script>
+  <script src="/frontend/pages.js?v=20260330_ux1"></script>
+</body>
+</html>

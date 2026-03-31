@@ -1,0 +1,39 @@
+{
+  "blockHeight": 22,
+  "timestamp": "2026-03-30T07:07:13.759235+00:00",
+  "previousHash": "55ac4aaa613ae5dee1c5c7f76b01c061de6f171d3410fe87e59f4262a731b0e3",
+  "nonce": 0,
+  "merkleRoot": "5ee3de49cc9002fa4d6959073f56c6815ab550e535f0b03735e9c151fc439012",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX81F5D9777B93",
+      "txType": "DAMAGE_CLAIMED",
+      "dataHash": "967f4af7ac6407b8db4cc5dfea6ed96e175ef1cdc91e10876b3d8e89fae30489",
+      "fromAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "toAddress": "0xSYSTEMESCROW",
+      "amount": 0.0,
+      "timestamp": "2026-03-30T07:07:13.596869+00:00",
+      "signature": "a3e3c739573ea70a467cfd0e427076323643982f940be7f354782c13efcbff52",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "fffe101b-20d0-48fb-a0fc-f4cab9243a48",
+        "tienCocId": "0a79c6d5-6a54-4826-860c-7d8e5c1544c9",
+        "tranhChapId": "2dc2043e-b11b-44f7-a2d5-440af546e1ae",
+        "baoCaoHuHaiId": "332434b5-ca61-461c-ae99-de9eaf6ec77a",
+        "action": "taoKhieuNai",
+        "evidenceHash": "b97592b3d15183ba66e9d5999441c04f7a43c90f201e9cd62987e2be3077018b",
+        "ownerId": "f9ffc9f9-4ca9-4dc5-a3b1-b727a53c75f5",
+        "lyDo": "xe bi be dan ao",
+        "estimatedCost": 1200000.0,
+        "evidenceUrls": [],
+        "evidenceMeta": {},
+        "ghiChu": ""
+      },
+      "blockHeight": 22,
+      "blockHash": "0163d602ec425905d9478d6cd7f98b0eab4f703b51bbf89729a81b9fb2815468",
+      "txIndex": 0
+    }
+  ],
+  "hash": "0163d602ec425905d9478d6cd7f98b0eab4f703b51bbf89729a81b9fb2815468"
+}

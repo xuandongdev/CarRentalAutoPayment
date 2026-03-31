@@ -1,4 +1,4 @@
-﻿HTML_PAGE = """
+HTML_PAGE = """
 <!doctype html>
 <html lang=\"vi\">
 <head>

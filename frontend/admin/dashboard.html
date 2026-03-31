@@ -1,0 +1,58 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1">
+</head>
+<body data-page="admin_dashboard">
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Control Center</div>
+      <nav id="sideNav"></nav>
+    </aside>
+    <section class="admin-main">
+      <header class="admin-topbar">
+        <h1>Dashboard quản trị</h1>
+        <div id="topNav"></div>
+        <div id="userMeta"></div>
+      </header>
+      <main class="admin-content">
+        <section class="card summary">
+          <div class="kpi"><div class="label">Xe chờ duyệt</div><div id="kpiVehiclesPending" class="value">0</div></div>
+          <div class="kpi"><div class="label">Booking chờ xác nhận</div><div id="kpiBookingsPending" class="value">0</div></div>
+          <div class="kpi"><div class="label">Hợp đồng đang thuê</div><div id="kpiContractsActive" class="value">0</div></div>
+          <div class="kpi"><div class="label">Tranh chấp đang mở</div><div id="kpiDisputesOpen" class="value">0</div></div>
+          <div class="kpi"><div class="label">Tổng giao dịch</div><div id="kpiTxTotal" class="value">0</div></div>
+          <div class="kpi"><div class="label">Trạng thái đồng bộ</div><div id="kpiSync" class="value">-</div></div>
+        </section>
+        <section class="card">
+          <h3>Quick Actions</h3>
+          <div id="quickActions" class="cta-row"></div>
+          <div id="adminDashboardMessage" class="message"></div>
+        </section>
+        <section class="card">
+          <h3>Action Queue</h3>
+          <div id="actionQueue" class="queue-grid"></div>
+        </section>
+        <section class="card">
+          <h3>Bảng công việc chính</h3>
+          <div id="adminWorkbenchTable"></div>
+        </section>
+        <section class="card">
+          <h3>Chi tiết bản ghi</h3>
+          <div id="adminEntityDetail" class="empty-state">Chọn một bản ghi trong bảng để xem chi tiết.</div>
+        </section>
+      </main>
+    </section>
+    <aside class="inspector-panel">
+      <h3 id="inspectorTitle">JSON Inspector</h3>
+      <div id="inspectorTabs"></div>
+      <div id="inspectorBody"><pre>{}</pre></div>
+    </aside>
+  </div>
+  <script src="/frontend/app.js?v=20260330_ux1"></script>
+  <script src="/frontend/pages.js?v=20260330_ux1"></script>
+</body>
+</html>
