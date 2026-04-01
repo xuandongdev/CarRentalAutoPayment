@@ -1,0 +1,73 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bang Dang Nhap</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Bang Dang Nhap Va Lien Ket Vi</h1>
+    <nav>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Trang Chu</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Chu Xe</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Khach Thue</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Dang Nhap</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Quan Tri</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Tai Chinh</a>
+    </nav>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Dia Chi Backend</h2>
+      <label>Dia chi Backend <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <div class="button-row">
+        <button id="loadOverviewBtn">Tai Tong Quan</button>
+        <button id="loadChainBtn">Tai Chuoi</button>
+        <button id="runReconcileBtn">Dong Bo Lai</button>
+      </div>
+      <p class="note">Trang Home da co full console. Trang nay tap trung cho register, login, me, logout va link MetaMask.</p>
+    </div>
+    <div class="grid">
+      <section class="card">
+        <h3>Dang Ky</h3>
+        <label>Ho Ten <input id="registerHoTen"></label>
+        <label>Email <input id="registerEmail"></label>
+        <label>So Dien Thoai <input id="registerSoDienThoai"></label>
+        <label>Password <input id="registerPassword" type="password"></label>
+        <button id="registerBtn">Dang Ky</button>
+      </section>
+      <section class="card">
+        <h3>Dang Nhap</h3>
+        <label>Email hoac So Dien Thoai <input id="identifier"></label>
+        <label>Password <input id="password" type="password"></label>
+        <button id="loginBtn">Dang Nhap</button>
+      </section>
+      <section class="card">
+        <h3>Phien Hien Tai</h3>
+        <div class="button-row">
+          <button id="meBtn">Lay Tai Khoan</button>
+          <button id="logoutBtn">Dang Xuat</button>
+        </div>
+      </section>
+      <section class="card">
+        <h3>Lien Ket MetaMask</h3>
+        <button id="linkWalletBtn">Connect / Lien Ket MetaMask</button>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
+    <section class="card">
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+server_test/__pycache__/Server.cpython-38.pyc
+backend/Service/__pycache__/RentalService.cpython-38.pyc
+backend/.env
+.vscode/settings.json
+backend/Service/__pycache__/RentalService.cpython-312.pyc
+backend/__pycache__/
+backend2/modules/__pycache__/
+*.pyc
+.env

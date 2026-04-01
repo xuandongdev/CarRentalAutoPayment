@@ -1,0 +1,30 @@
+{
+  "blockHeight": 1,
+  "timestamp": "2026-03-23T20:33:34.067054+00:00",
+  "previousHash": "25ac50381cabeac678f1a52793b180694f4398df7d03ed18466b1a16fca1a194",
+  "nonce": 0,
+  "merkleRoot": "3bf9188ecda56064159efba11c34d357c7421a77ee9245273c901b4d2bf437b6",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX9FCDB627FD12",
+      "txType": "LOCK_DEPOSIT",
+      "dataHash": "235009bf6f993e25ff0e9654b906b90dabd8b15c065a5a339f6a5232e8c3797c",
+      "fromAddress": "0xKHACH001",
+      "toAddress": "0xSYSTEMESCROW",
+      "amount": 2000000.0,
+      "timestamp": "2026-03-23T20:33:34.066047+00:00",
+      "signature": "9176cc961cbafed176a309bed21c8e51ca39f03e723b7692c65657077ef5f98c",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "7553a765-c1a5-4367-84c1-c58659b19aba",
+        "tienCocId": "75ab2db1-7fd1-4404-bd02-836b6d84a69a",
+        "action": "khoaCoc"
+      },
+      "blockHeight": 1,
+      "blockHash": "9567d3ac0ce3bea9b25618c51460116a1e0ba110201cea49df8a30bf527826d4",
+      "txIndex": 0
+    }
+  ],
+  "hash": "9567d3ac0ce3bea9b25618c51460116a1e0ba110201cea49df8a30bf527826d4"
+}

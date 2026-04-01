@@ -1,0 +1,35 @@
+{
+  "blockHeight": 17,
+  "timestamp": "2026-03-29T16:34:22.467201+00:00",
+  "previousHash": "1c2d671e6f268f877eea66dad77a8859a6170142da91592c523a5d0acd2cce34",
+  "nonce": 0,
+  "merkleRoot": "333270342bff2bfa27c0e284d33772c8e17fb78b47d4d085b2aa950b91691ede",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TXF399B3740754",
+      "txType": "VEHICLE_RETURNED",
+      "dataHash": "803fd95093d915bd5ab6f3bc59a33181942e944847674df3efcdf87634bb2929",
+      "fromAddress": "0xc8f26d3b980286b752fabdbc19aabcfe9c3b76ff",
+      "toAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "amount": 0.0,
+      "timestamp": "2026-03-29T16:34:22.261010+00:00",
+      "signature": "8e457d967b7edc6ca85862f042ba04c2a051266c475fd5809dd482c5a4a1b624",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "cb3d9721-a55f-4620-9a9d-e6cc3b3583de",
+        "tienCocId": "8df1fc00-ef1a-4268-abb6-ca113f7e2785",
+        "action": "traXe",
+        "evidenceHash": "d22ba589f6ccfde1304a37961c8796e96766aba72a08b25feacdb6a83287c4cd",
+        "nguoiTraId": "6a75b40b-f0d7-45af-a37f-618da1bcafbe",
+        "ghiChu": "Khach da tra xe",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 17,
+      "blockHash": "01db1c9e33e2ba4648f8f1917db34145e50babfa9183c0fbcfa73817d84d9a59",
+      "txIndex": 0
+    }
+  ],
+  "hash": "01db1c9e33e2ba4648f8f1917db34145e50babfa9183c0fbcfa73817d84d9a59"
+}

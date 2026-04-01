@@ -1,0 +1,171 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bang Dieu Khien Tong Hop</title>
+  <link rel="stylesheet" href="/frontend/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Bang Dieu Khien Thu Nghiem Tong Hop</h1>
+    <nav>
+      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Trang Chu</a>
+      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Chu Xe</a>
+      <a href="/frontend/renter.html" data-visible-for="admin,khach">Khach Thue</a>
+      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Dang Nhap</a>
+      <a href="/frontend/admin.html" data-visible-for="admin">Quan Tri</a>
+      <a href="/frontend/finance.html" data-visible-for="admin">Tai Chinh</a>
+    </nav>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Dia Chi Backend</h2>
+      <label>Dia chi Backend <input id="apiBase" value="http://127.0.0.1:8000"></label>
+      <p class="note">Trang nay gom day du cac nut test cho auth, vehicle, booking, contract, dispute, chain va overview.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" data-visible-for="admin,chuxe,khach">
+        <h3>Tien Ich</h3>
+        <div class="button-row">
+          <button id="loadOverviewBtn">Tai Tong Quan</button>
+          <button id="loadChainBtn">Tai Chuoi</button>
+          <button id="runReconcileBtn">Dong Bo Lai</button>
+        </div>
+      </section>
+
+      <section class="card" data-visible-for="admin,chuxe,khach,guest">
+        <h3>Dang Ky</h3>
+        <label>Ho Ten <input id="registerHoTen"></label>
+        <label>Email <input id="registerEmail"></label>
+        <label>So Dien Thoai <input id="registerSoDienThoai"></label>
+        <label>Password <input id="registerPassword" type="password"></label>
+        <button id="registerBtn">Register</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,chuxe,khach,guest">
+        <h3>Dang Nhap / Tai Khoan / Dang Xuat</h3>
+        <label>Identifier <input id="identifier"></label>
+        <label>Password <input id="password" type="password"></label>
+        <div class="button-row">
+          <button id="loginBtn">Login</button>
+          <button id="meBtn">Get Me</button>
+          <button id="logoutBtn">Logout</button>
+        </div>
+        <button id="linkWalletBtn">Connect / Link MetaMask</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,chuxe">
+        <h3>Them Xe</h3>
+        <label>Email Chu Xe <input id="ownerEmail"></label>
+        <label>Bien So <input id="bienSo"></label>
+        <label>Hang Xe <input id="hangXe"></label>
+        <label>Dong Xe <input id="dongXe"></label>
+        <label>Loai Xe <input id="loaiXe" value="Sedan"></label>
+        <label>Gia Theo Ngay <input id="giaTheoNgay" value="800000"></label>
+        <label>Gia Theo Gio <input id="giaTheoGio" value="120000"></label>
+        <label>Mo Ta <textarea id="moTa"></textarea></label>
+        <button id="addVehicle">Them Xe</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,khach">
+        <h3>Tao Don Dat Xe</h3>
+        <label>Email Khach Thue <input id="renterEmail"></label>
+        <label>Bien So <input id="bookingBienSo"></label>
+        <label>Ngay Bat Dau <input id="ngayBatDau" type="date"></label>
+        <label>Ngay Ket Thuc <input id="ngayKetThuc" type="date"></label>
+        <label>Dia Diem Nhan <input id="diaDiemNhan"></label>
+        <label>Tong Tien Thue <input id="tongTienThue" value="1600000"></label>
+        <button id="createBooking">Tao Don Dat Xe</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,khach">
+        <h3>Tao Hop Dong</h3>
+        <label>Ma Don Dat Xe <input id="bookingId"></label>
+        <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
+        <button id="createContract">Tao Hop Dong</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,khach">
+        <h3>Khoa Tien Coc</h3>
+        <label>Ma Hop Dong <input id="lockContractId"></label>
+        <button id="lockDeposit">Khoa Tien Coc</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,khach">
+        <h3>Tra Xe</h3>
+        <label>Ma Hop Dong <input id="returnContractId"></label>
+        <label>Ma Nguoi Tra <input id="nguoiTraId"></label>
+        <label>Ghi Chu <textarea id="returnNote">Khach da tra xe</textarea></label>
+        <label>URL Bang Chung <textarea id="returnEvidenceUrls"></textarea></label>
+        <button id="returnVehicle">Tra Xe</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,chuxe">
+        <h3>Tao Khieu Nai Hu Hai</h3>
+        <label>Ma Hop Dong <input id="damageContractId"></label>
+        <label>Ma Chu Xe <input id="ownerId"></label>
+        <label>Ly Do <textarea id="lyDo"></textarea></label>
+        <label>Chi Phi Uoc Tinh <input id="estimatedCost" value="1200000"></label>
+        <label>URL Bang Chung <textarea id="damageEvidenceUrls"></textarea></label>
+        <label>Ghi Chu <textarea id="ghiChu"></textarea></label>
+        <button id="claimDamage">Tao Khieu Nai</button>
+      </section>
+
+      <section class="card" data-visible-for="admin">
+        <h3>Admin Xac Nhan Khong Hu Hai</h3>
+        <label>Ma Tranh Chap <input id="noDamageDisputeId"></label>
+        <label>Ma Admin <input id="noDamageAdminId"></label>
+        <label>Ghi Chu Ket Luan <textarea id="noDamageDecisionNote">Da doi chieu anh giao xe va anh tra xe, khong co hu hai moi</textarea></label>
+        <button id="submitNoDamage">Gui Xac Nhan</button>
+      </section>
+
+      <section class="card" data-visible-for="admin">
+        <h3>Admin Xac Nhan Co Hu Hai</h3>
+        <label>Ma Tranh Chap <input id="damageDisputeId"></label>
+        <label>Ma Admin <input id="damageAdminId"></label>
+        <label>Chi Phi Duoc Duyet <input id="approvedCost" value="1000000"></label>
+        <label>Ghi Chu Ket Luan <textarea id="damageDecisionNote">Xac nhan hu hai thuc te</textarea></label>
+        <button id="submitDamage">Gui Xac Nhan</button>
+      </section>
+
+      <section class="card" data-visible-for="admin,chuxe,khach">
+        <h3>Tat Toan Hop Dong</h3>
+        <label>Ma Hop Dong <input id="settleContractId"></label>
+        <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
+        <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
+        <button id="settleContract">Tat Toan</button>
+      </section>
+
+      <section class="card" data-visible-for="admin">
+        <h3>Xem Nhanh Tai Chinh</h3>
+        <div class="button-row">
+          <button id="loadWalletsOverviewBtn">Tong Quan Vi</button>
+          <button id="loadFinanceSummaryBtn">Tong Hop Tai Chinh</button>
+        </div>
+        <label>Dia Chi Vi Giao Dich <input id="financeWalletAddress"></label>
+        <label>Loai Giao Dich <input id="financeTxType"></label>
+        <label>Finance Tx Ma Hop Dong <input id="financeContractId"></label>
+        <label>Finance Tx Ma Tranh Chap <input id="financeDisputeId"></label>
+        <button id="loadFinanceTransactionsBtn">Tai Giao Dich Tai Chinh</button>
+        <label>Money Flow Ma Hop Dong <input id="moneyFlowContractId"></label>
+        <button id="loadMoneyFlowBtn">Tai Dong Tien Hop Dong</button>
+      </section>
+    </div>
+
+
+    <section class="card">
+      <h3>Du Lieu Tham Chieu</h3>
+      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
+      <pre id="referenceData">Dang tai...</pre>
+    </section>
+    <section class="card">
+      <h3>JSON Log</h3>
+      <pre id="result">Chua co du lieu</pre>
+    </section>
+  </main>
+  <script src="/frontend/app.js"></script>
+  <script src="/frontend/index.js"></script>
+</body>
+</html>
