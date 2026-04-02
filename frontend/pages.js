@@ -8,6 +8,7 @@ const vehicleCanBook = (row) => {
   const value = gv(row, 'canbook', 'canBook', null);
   return value === true || value === 'true';
 };
+const contractFlowStatus = (row) => gv(row, 'trangthailogical', 'trangthaihienthi', 'trangthai');
 
 function disputePriority(row) {
   const status = String(gv(row, 'trangthai') || '');
@@ -547,7 +548,7 @@ async function initAdminDisputes() {
   }
 }
 
-const OWNER_ACTIVE_CONTRACT_STATUSES = new Set(['dangThue', 'choKiemTraTraXe', 'dangTranhChap']);
+const OWNER_ACTIVE_CONTRACT_STATUSES = new Set(['choChuXacNhanGiaoXe', 'choKhachNhanXe', 'dangThue', 'choChuXacNhanTraXe', 'choTatToan', 'dangTranhChap']);
 const OWNER_OPEN_DISPUTE_STATUSES = new Set(['moiTao', 'choAdminXacMinh', 'dangMo', 'dangXuLy']);
 
 function ownerShortId(value, size = 6) {
@@ -646,11 +647,11 @@ async function initOwnerDashboard() {
     const disputes = arr(disputesRes.items);
     const contracts = arr(contractsRes.items);
     const slots = arr(availabilityRes.items);
-    const activeContracts = contracts.filter((r) => OWNER_ACTIVE_CONTRACT_STATUSES.has(String(gv(r, 'trangthai'))));
+    const activeContracts = contracts.filter((r) => OWNER_ACTIVE_CONTRACT_STATUSES.has(String(contractFlowStatus(r))));
     const openDisputes = disputes.filter((r) => OWNER_OPEN_DISPUTE_STATUSES.has(String(gv(r, 'trangthai'))));
     const pendingVehicles = vehicles.filter((r) => gv(r, 'trangthai') === 'choDuyet');
     const rentingVehicles = vehicles.filter((r) => gv(r, 'trangthai') === 'dangThue');
-    const waitingReturn = contracts.filter((r) => String(gv(r, 'trangthai')) === 'choKiemTraTraXe');
+    const waitingReturn = contracts.filter((r) => String(contractFlowStatus(r)) === 'choChuXacNhanTraXe');
     const slotVehicleIds = new Set(slots.map((x) => gv(x, 'xeid')).filter(Boolean));
     const noSchedule = vehicles.filter((v) => !slotVehicleIds.has(gv(v, 'id')));
 
@@ -677,7 +678,7 @@ async function initOwnerDashboard() {
       { key: 'xeid', label: 'Xe', render: (r) => ownerShortId(gv(r, 'xeid')) },
       { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
       { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
     ]);
 
     App.renderTable('ownerRecentDisputes', disputes.slice(0, 6), [
@@ -703,7 +704,7 @@ async function initRenterDashboard() {
     $('kpiBookings').textContent = arr(bookings.items).length;
     $('kpiContracts').textContent = arr(contracts.items).length;
     $('kpiDeposits').textContent = arr(deposits.items).length;
-    $('kpiActive').textContent = arr(contracts.items).filter((c) => gv(c, 'trangthai') === 'dangThue').length;
+    $('kpiActive').textContent = arr(contracts.items).filter((c) => contractFlowStatus(c) === 'dangThue').length;
     App.renderTable('renterRecentBookings', arr(bookings.items).slice(0, 6), [
       { key: 'id', label: 'Booking' }, { key: 'xeid', label: 'Xe' }, { key: 'songaythue', label: 'Số ngày' },
       { key: 'tongtienthue', label: 'Tổng tiền', render: (r) => App.formatMoney(gv(r, 'tongtienthue')) }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
@@ -1006,7 +1007,7 @@ async function initOwnerContractsSimple() {
     state.filtered = state.all.filter((row) => {
       const text = `${ownerContractCode(gv(row, 'id'))} ${vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid')} ${ownerCustomerCode(gv(row, 'nguoithueid'))}`.toLowerCase();
       const matchQ = !q || text.includes(q);
-      const matchStatus = !status || String(gv(row, 'trangthai')) === status;
+      const matchStatus = !status || String(contractFlowStatus(row)) === status;
       return matchQ && matchStatus;
     });
   };
@@ -1020,7 +1021,7 @@ async function initOwnerContractsSimple() {
         <div class="kv"><span>Xe</span><strong>${App.escapeHtml(vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid'))}</strong></div>
         <div class="kv"><span>Mã khách thuê</span><strong>${App.escapeHtml(gv(row, 'nguoithueid'))}</strong></div>
         <div class="kv"><span>Tiền cọc</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'tongtiencoc') || 0))}</strong></div>
-        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(gv(row, 'trangthai') || ''))}</strong></div>
+        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(contractFlowStatus(row) || ''))}</strong></div>
         <div class="kv"><span>Tạo lúc</span><strong>${App.escapeHtml(App.formatDate(gv(row, 'taoluc')) || 'Chưa cập nhật')}</strong></div>
       </div>
       <div class="table-actions" style="margin-top:10px">
@@ -1038,7 +1039,7 @@ async function initOwnerContractsSimple() {
       { key: 'xeid', label: 'Xe', render: (r) => App.escapeHtml(vehicleMap.get(gv(r, 'xeid')) || ownerShortId(gv(r, 'xeid'))) },
       { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
       { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
       { key: 'taoluc', label: 'Ngày tạo', render: (r) => App.formatDate(gv(r, 'taoluc')) || '—' },
       { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
         <div class="table-actions">
@@ -1057,6 +1058,9 @@ async function initOwnerContractsSimple() {
     vehicleMap.clear();
     arr(vehicles.items).forEach((v) => vehicleMap.set(gv(v, 'id'), ownerVehicleLabel(v)));
     state.all = arr(contracts.items);
+    const label = (c) => `${ownerContractCode(gv(c, 'id'))} - ${contractFlowStatus(c)}`;
+    App.renderSelect('ownerHandoverContractId', state.all, 'id', label, 'Chọn hợp đồng');
+    App.renderSelect('ownerReturnContractId', state.all, 'id', label, 'Chọn hợp đồng');
     render();
   };
 
@@ -1084,6 +1088,46 @@ async function initOwnerContractsSimple() {
   } catch (e) {
     ownerShowError('ownerContractsMessage', e, 'Không thể tải danh sách hợp đồng lúc này.');
   }
+
+  $('ownerConfirmHandoverForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.submitter || $('ownerConfirmHandoverForm')?.querySelector('button[type="submit"]');
+    try {
+      App.setLoading(btn, true);
+      const id = App.requireValue($('ownerHandoverContractId')?.value, 'Chưa chọn hợp đồng');
+      const stepUpHeaders = await requireStepUpChallengeHeader();
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/owner-confirm-handover`, {
+        ghiChu: App.requireValue($('ownerHandoverNote')?.value, 'Thiếu ghi chú giao xe'),
+        evidenceUrls: [],
+      }, '', stepUpHeaders);
+      App.showMessage('ownerContractsMessage', 'Đã xác nhận giao xe.', 'success');
+      await load();
+    } catch (er) {
+      ownerShowError('ownerContractsMessage', er, 'Không thể xác nhận giao xe lúc này.');
+    } finally {
+      App.setLoading(btn, false);
+    }
+  });
+
+  $('ownerConfirmReturnForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.submitter || $('ownerConfirmReturnForm')?.querySelector('button[type="submit"]');
+    try {
+      App.setLoading(btn, true);
+      const id = App.requireValue($('ownerReturnContractId')?.value, 'Chưa chọn hợp đồng');
+      const stepUpHeaders = await requireStepUpChallengeHeader();
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/owner-confirm-return`, {
+        ghiChu: App.requireValue($('ownerReturnNote')?.value, 'Thiếu ghi chú nhận lại xe'),
+        evidenceUrls: [],
+      }, '', stepUpHeaders);
+      App.showMessage('ownerContractsMessage', 'Đã xác nhận nhận lại xe.', 'success');
+      await load();
+    } catch (er) {
+      ownerShowError('ownerContractsMessage', er, 'Không thể xác nhận nhận lại xe lúc này.');
+    } finally {
+      App.setLoading(btn, false);
+    }
+  });
 }
 
 async function initOwnerDisputesSimple() {
@@ -1280,13 +1324,14 @@ async function initRenterContractsSimple() {
     const data = await App.requestJson('GET', `${App.getApiBase()}/api/renter/contracts`);
     map.clear();
     arr(data.items).forEach((x) => map.set(gv(x, 'id'), x));
-    const label = (c) => `${gv(c, 'id')} - ${gv(c, 'trangthai')}`;
+    const label = (c) => `${gv(c, 'id')} - ${contractFlowStatus(c)}`;
     App.renderSelect('lockContractId', arr(data.items), 'id', label);
+    App.renderSelect('receiveContractId', arr(data.items), 'id', label);
     App.renderSelect('returnContractId', arr(data.items), 'id', label);
     App.renderSelect('settleContractId', arr(data.items), 'id', label);
     App.renderTable('renterContractsTable', arr(data.items), [
       { key: 'id', label: 'Hợp đồng' }, { key: 'xeid', label: 'Xe' }, { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
     ]);
   };
   const syncSettle = () => {
@@ -1305,6 +1350,17 @@ async function initRenterContractsSimple() {
       const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('lockContractId')?.value, 'Chưa chọn hợp đồng')}/lock-deposit`, {}, '', stepUpHeaders);
       App.showMessage('renterContractsMessage', 'Đã khóa cọc.', 'success');
+      await load();
+    } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
+  });
+  $('confirmReceiveForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const id = App.requireValue($('receiveContractId')?.value, 'Chưa chọn hợp đồng');
+      const evidenceUrls = ($('receiveEvidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
+      const stepUpHeaders = await requireStepUpChallengeHeader();
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/renter-confirm-receive`, { ghiChu: App.requireValue($('receiveNote')?.value, 'Thiếu ghi chú nhận xe'), evidenceUrls }, '', stepUpHeaders);
+      App.showMessage('renterContractsMessage', 'Đã xác nhận nhận xe.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
   });

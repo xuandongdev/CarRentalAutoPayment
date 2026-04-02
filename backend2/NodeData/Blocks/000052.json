@@ -1,0 +1,35 @@
+{
+  "blockHeight": 52,
+  "timestamp": "2026-04-02T07:02:41.650922+00:00",
+  "previousHash": "45091fec82657f2935e9f99eeb4e79d540dab702aaccbc1416269476ced65beb",
+  "nonce": 0,
+  "merkleRoot": "202dc365fcd868a8bf27add58950a303ba0c06a14daa24a8d9d9ca52f06e1913",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX2C79BEFA175D",
+      "txType": "OWNER_HANDOVER_CONFIRMED",
+      "dataHash": "385462c9ddb49e8a730181fa0a11b3f1a20e5ee6fa9ec253ee1a287e95500353",
+      "fromAddress": "0x46bcb29f42ebd3d4d753ff07f62c85d9627aa674",
+      "toAddress": "0x9f26cd2288bd2faa58b784ae3c8c1c8501e2de2a",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:02:41.515468+00:00",
+      "signature": "a942ccf93446141fcdc9873c1c4978bbc5b55a1435cd8e9077f71c5eba9a5456",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "370aa7ef-094f-4f39-b95b-55eb56eb5b9f",
+        "tienCocId": "4b2523e2-ec37-49d2-bfa6-e2173b013d1b",
+        "action": "ownerConfirmHandover",
+        "evidenceHash": "ffc38d73b9704a459a41cc45057862499c625678f729a267d4c30c27edb4738d",
+        "chuXeId": "f7923eff-9240-45a0-a531-8c1391f7c518",
+        "ghiChu": "Owner handed over vehicle",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 52,
+      "blockHash": "2cafce339de2c3d5e8d6e318f75cf6330669c76b96ecc6e808b813fe0d8147a9",
+      "txIndex": 0
+    }
+  ],
+  "hash": "2cafce339de2c3d5e8d6e318f75cf6330669c76b96ecc6e808b813fe0d8147a9"
+}

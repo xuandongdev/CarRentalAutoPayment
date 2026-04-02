@@ -136,6 +136,17 @@ class ReturnVehicleRequest(StrictBaseModel):
         return normalize_non_empty_str(value, info.field_name)
 
 
+class ConfirmContractStepRequest(StrictBaseModel):
+    ghichu: str = Field(alias="ghiChu")
+    evidenceurls: list[str] = Field(default_factory=list, alias="evidenceUrls")
+    evidencemeta: dict[str, Any] = Field(default_factory=dict, alias="evidenceMeta")
+
+    @field_validator("ghichu")
+    @classmethod
+    def validate_required_text(cls, value: str, info):
+        return normalize_non_empty_str(value, info.field_name)
+
+
 class CreateDamageClaimRequest(StrictBaseModel):
     lydo: str = Field(alias="lyDo")
     estimatedcost: float = Field(default=0, alias="estimatedCost")

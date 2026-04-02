@@ -1,0 +1,35 @@
+{
+  "blockHeight": 54,
+  "timestamp": "2026-04-02T07:02:49.031091+00:00",
+  "previousHash": "b7c90e0f793a53256138f0f1f266b33ca501f54e534f1e5ec7f4266a8bc9800d",
+  "nonce": 0,
+  "merkleRoot": "9f911f3f21892926c3576e5af1396d6a008027cd9d344d754e311485997167e0",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TXD5BC53AAC56B",
+      "txType": "VEHICLE_RETURNED",
+      "dataHash": "9c3c8352205639d82b90f331caadc4236f106f53fea9adc152f83427827b470b",
+      "fromAddress": "0x9f26cd2288bd2faa58b784ae3c8c1c8501e2de2a",
+      "toAddress": "0x46bcb29f42ebd3d4d753ff07f62c85d9627aa674",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:02:48.905940+00:00",
+      "signature": "8bb2985afb01ca83c678164c91b90778721f1a3b51d29b9b33638999b6dcccc7",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "370aa7ef-094f-4f39-b95b-55eb56eb5b9f",
+        "tienCocId": "4b2523e2-ec37-49d2-bfa6-e2173b013d1b",
+        "action": "traXe",
+        "evidenceHash": "0bf8f01e3918e72eb71a2e2b31166b6372f78bfcaf39afedfa20c5b4792dfbb8",
+        "nguoiTraId": "11432e5f-fc2f-46f0-939d-f741db61409d",
+        "ghiChu": "Renter returned vehicle",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 54,
+      "blockHash": "46d1835ec6de59c88a32ddd2886d3da321092212dc05fc51ac0925f73f3452cd",
+      "txIndex": 0
+    }
+  ],
+  "hash": "46d1835ec6de59c88a32ddd2886d3da321092212dc05fc51ac0925f73f3452cd"
+}

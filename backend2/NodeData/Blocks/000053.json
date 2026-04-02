@@ -1,0 +1,35 @@
+{
+  "blockHeight": 53,
+  "timestamp": "2026-04-02T07:02:45.166625+00:00",
+  "previousHash": "2cafce339de2c3d5e8d6e318f75cf6330669c76b96ecc6e808b813fe0d8147a9",
+  "nonce": 0,
+  "merkleRoot": "5e2d109f0dd94c8cce90b5804eadb7387b5d89120cdbf4328101634175cb794b",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX30052A99A6DF",
+      "txType": "RENTER_RECEIVE_CONFIRMED",
+      "dataHash": "19c5e68eac26088aa010b15ad48a551c1618985394666522410e1881445520e0",
+      "fromAddress": "0x9f26cd2288bd2faa58b784ae3c8c1c8501e2de2a",
+      "toAddress": "0x46bcb29f42ebd3d4d753ff07f62c85d9627aa674",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:02:45.050790+00:00",
+      "signature": "309133e06429709e105d143e6fe83ce333ff5979e70b3687ec4a5014f29497c3",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "370aa7ef-094f-4f39-b95b-55eb56eb5b9f",
+        "tienCocId": "4b2523e2-ec37-49d2-bfa6-e2173b013d1b",
+        "action": "renterConfirmReceive",
+        "evidenceHash": "c472a200bcecccf13ff58f477c6e7d8b81681478cb7c5ee1bc41387e34b9d8cc",
+        "nguoiThueId": "11432e5f-fc2f-46f0-939d-f741db61409d",
+        "ghiChu": "Renter received vehicle",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 53,
+      "blockHash": "b7c90e0f793a53256138f0f1f266b33ca501f54e534f1e5ec7f4266a8bc9800d",
+      "txIndex": 0
+    }
+  ],
+  "hash": "b7c90e0f793a53256138f0f1f266b33ca501f54e534f1e5ec7f4266a8bc9800d"
+}

@@ -1,0 +1,35 @@
+{
+  "blockHeight": 60,
+  "timestamp": "2026-04-02T07:18:24.677160+00:00",
+  "previousHash": "7d03002bf4078ef08193e95940cd58234bd9c4ada1f5f465467f53cee27f6f71",
+  "nonce": 0,
+  "merkleRoot": "184934c3c55bea4ab19c17e6c6fb5be12da528e3e6b053c458bbabb3a15e3b04",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX7D4DD96DAB95",
+      "txType": "RENTER_RECEIVE_CONFIRMED",
+      "dataHash": "5b6451f983df46ab53c1f6cbd740dea8e7094f59945cb20a159ce5caf3ac5d89",
+      "fromAddress": "0x5f225d3b39de0a60ff7cc06f1361aa57dcae6c1e",
+      "toAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:18:24.547979+00:00",
+      "signature": "9b304d476c4776f490b20f85af2485562b46245ffb29bf80cac4710f1fcab2c2",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "035a6fa8-70e1-4e3f-abec-9b1c17967b52",
+        "tienCocId": "3f04cf7c-2a60-4789-801e-67dbe5a19124",
+        "action": "renterConfirmReceive",
+        "evidenceHash": "3119fd4a3e8ca46c29653fed3d611571c9363829ddaa0544434be6d793d57fa1",
+        "nguoiThueId": "81f32200-4a3f-4d46-a614-7fdfbfbb83c1",
+        "ghiChu": "đa nhận nha",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 60,
+      "blockHash": "2e3675fd4fbc9050cd1813b4c4064136326511c4d157397486fc0e71433d5d63",
+      "txIndex": 0
+    }
+  ],
+  "hash": "2e3675fd4fbc9050cd1813b4c4064136326511c4d157397486fc0e71433d5d63"
+}

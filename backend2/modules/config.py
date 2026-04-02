@@ -38,7 +38,11 @@ TABLES = {
 CONTRACT_STATUS_ALIASES = {
     "khoiTao": {"khoiTao"},
     "choKhoaCoc": {"khoiTao", "choKhoaCoc"},
+    "choChuXacNhanGiaoXe": {"khoiTao", "choChuXacNhanGiaoXe"},
+    "choKhachNhanXe": {"khoiTao", "choKhachNhanXe"},
     "dangThue": {"dangThue"},
+    "choChuXacNhanTraXe": {"dangThue", "choChuXacNhanTraXe"},
+    "choTatToan": {"dangThue", "choTatToan"},
     "choKiemTraTraXe": {"dangThue", "choKiemTraTraXe"},
     "dangTranhChap": {"dangThue", "dangTranhChap"},
     "adminXacNhanKhongHuHai": {"hoanThanh", "adminXacNhanKhongHuHai"},
@@ -49,7 +53,11 @@ CONTRACT_STATUS_ALIASES = {
 CONTRACT_STATUS_DB = {
     "khoiTao": "khoiTao",
     "choKhoaCoc": "khoiTao",
+    "choChuXacNhanGiaoXe": "khoiTao",
+    "choKhachNhanXe": "khoiTao",
     "dangThue": "dangThue",
+    "choChuXacNhanTraXe": "dangThue",
+    "choTatToan": "dangThue",
     "choKiemTraTraXe": "dangThue",
     "dangTranhChap": "dangThue",
     "adminXacNhanKhongHuHai": "hoanThanh",
@@ -93,6 +101,9 @@ DISPUTE_STATUS_DB = {
 
 TX_EVENT_NAMES = {
     "LOCK_DEPOSIT": "lockDeposit",
+    "OWNER_HANDOVER_CONFIRMED": "ownerHandoverConfirmed",
+    "RENTER_RECEIVE_CONFIRMED": "renterReceiveConfirmed",
+    "OWNER_RETURN_CONFIRMED": "ownerReturnConfirmed",
     "SETTLE_PAYMENT": "settlePayment",
     "REFUND_DEPOSIT": "refundDeposit",
     "VEHICLE_RETURNED": "vehicleReturned",

@@ -21,6 +21,7 @@ from .models import (
     AddVehicleRequest,
     AdminConfirmDamageRequest,
     AdminConfirmNoDamageRequest,
+    ConfirmContractStepRequest,
     CreateBookingRequest,
     CreateContractRequest,
     CreateDamageClaimRequest,
@@ -131,6 +132,45 @@ class RentalAppService:
     def _locked_deposit_amount(self, deposit: dict) -> Decimal:
         amount = self._decimal(deposit.get("sotienkhoacoc"))
         return amount if amount > ZERO else self._decimal(deposit.get("tonghoacoc"))
+
+    def _deposit_status_in(self, deposit: Optional[dict], allowed_statuses: list[str]) -> bool:
+        if deposit is None:
+            return False
+        return deposit.get("trangthai") in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, allowed_statuses)
+
+    def _logical_contract_status(self, contract: dict, deposit: Optional[dict]) -> str:
+        raw_status = str(contract.get("trangthai") or "")
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            return "hoanThanh"
+
+        delivered = bool(contract.get("dagiaoxe"))
+        owner_received = bool(contract.get("danhanlaixe"))
+
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "khoiTao"):
+            if delivered:
+                return "choKhachNhanXe"
+            if self._deposit_status_in(deposit, ["daKhoa", "tamGiuDoTranhChap", "daTatToan", "daHoan", "daChuyenChoOwner"]):
+                return "choChuXacNhanGiaoXe"
+            return "khoiTao"
+
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            if self._deposit_status_in(deposit, ["tamGiuDoTranhChap"]):
+                return "dangTranhChap"
+            if owner_received:
+                return "choTatToan"
+            if delivered:
+                return "dangThue"
+            return "choChuXacNhanTraXe"
+
+        return raw_status
+
+    def _with_contract_flow_state(self, contract: dict, deposit: Optional[dict]) -> dict:
+        logical_status = self._logical_contract_status(contract, deposit)
+        item = dict(contract)
+        item["trangthairaw"] = contract.get("trangthai")
+        item["trangthailogical"] = logical_status
+        item["trangthaihienthi"] = logical_status
+        return item
 
     def _ensure_admin_user_context(self, admin_id: str) -> dict:
         admin = self.one("users", id=admin_id)
@@ -656,7 +696,19 @@ class RentalAppService:
 
     def list_contracts_for_user(self, user_id: str) -> list[dict]:
         rows = self.t("contracts").select("*").order("taoluc", desc=True).limit(500).execute().data or []
-        return [row for row in rows if row.get("nguoithueid") == user_id or row.get("chuxeid") == user_id]
+        filtered = [row for row in rows if row.get("nguoithueid") == user_id or row.get("chuxeid") == user_id]
+        contract_ids = [row.get("id") for row in filtered if row.get("id")]
+        deposits = (
+            self.t("deposits")
+            .select("*")
+            .in_("hopdongthueid", contract_ids)
+            .limit(max(len(contract_ids), 1) * 2)
+            .execute()
+            .data
+            or []
+        ) if contract_ids else []
+        deposit_map = {row.get("hopdongthueid"): row for row in deposits if row.get("hopdongthueid")}
+        return [self._with_contract_flow_state(row, deposit_map.get(row.get("id"))) for row in filtered]
 
     def list_disputes_for_owner(self, owner_id: str) -> list[dict]:
         contract_rows = self.t("contracts").select("id,chuxeid").eq("chuxeid", owner_id).limit(500).execute().data or []
@@ -855,23 +907,120 @@ class RentalAppService:
             "capnhatluc": now_iso(),
         })
         contract = self.update("contracts", "id", contract_id, {
-            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
-            "dagiaoxe": True,
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
+            "dagiaoxe": False,
+            "danhanlaixe": False,
             "capnhatluc": now_iso(),
         })
         self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("lock_deposit_success", contractId=contract_id, txHash=txs[0].get("txHash"), blockHeight=block.get("blockHeight"), amount=self._to_number(amount))
         return {"block": block, "transactions": txs, "transaction": txs[0], "hopDongThue": contract, "tienCoc": deposit, "mirror": mine_result["mirror"]}
 
+    def owner_confirm_handover(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("owner_confirm_handover_attempt", contractId=contract_id, ownerId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if actor_user_id != contract["chuxeid"]:
+            raise ValueError("Nguoi xac nhan giao xe khong dung voi chu xe cua contract")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            raise ValueError("Contract da hoan thanh, khong the xac nhan giao xe")
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
+            raise ValueError("Can khoa coc truoc khi chu xe xac nhan giao xe")
+        if bool(contract.get("dagiaoxe")):
+            raise ValueError("Chu xe da xac nhan giao xe truoc do")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "chuXeId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("ownerHandoverConfirmed", payload)
+        tx = self.node.make_tx(
+            "OWNER_HANDOVER_CONFIRMED",
+            contract["addresschuxe"],
+            contract["addressnguoithue"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "ownerConfirmHandover",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
+            "dagiaoxe": True,
+            "danhanlaixe": False,
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._log_service_event("owner_confirm_handover_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "handoverEvidenceHash": evidence_hash}
+
+    def renter_confirm_receive(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("renter_confirm_receive_attempt", contractId=contract_id, renterId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if actor_user_id != contract["nguoithueid"]:
+            raise ValueError("Nguoi xac nhan nhan xe khong dung voi nguoi thue cua contract")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            raise ValueError("Contract da hoan thanh, khong the xac nhan nhan xe")
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
+            raise ValueError("Can khoa coc truoc khi xac nhan nhan xe")
+        if not bool(contract.get("dagiaoxe")):
+            raise ValueError("Chu xe chua xac nhan giao xe")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Hop dong da o trang thai dang thue, khong the xac nhan nhan xe lap lai")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "nguoiThueId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("renterReceiveConfirmed", payload)
+        tx = self.node.make_tx(
+            "RENTER_RECEIVE_CONFIRMED",
+            contract["addressnguoithue"],
+            contract["addresschuxe"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "renterConfirmReceive",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
+        self._log_service_event("renter_confirm_receive_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "receiveEvidenceHash": evidence_hash}
+
     def return_vehicle(self, contract_id: str, actor_user_id: str, req: ReturnVehicleRequest) -> dict:
         self._log_service_event("return_vehicle_attempt", contractId=contract_id, nguoiTraId=actor_user_id)
         contract, deposit = self._get_contract_and_deposit(contract_id)
-        self._ensure_contract_status(contract, ["dangThue"], "tra xe")
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc tra xe khi hop dong dang o trang thai dang thue")
         if contract.get("danhanlaixe"):
             raise ValueError("Contract da o sau buoc tra xe, khong the tra xe lap lai")
+        if not bool(contract.get("dagiaoxe")):
+            raise ValueError("Hop dong khong o buoc dang su dung xe hoac da tra xe truoc do")
         if actor_user_id != contract["nguoithueid"]:
             raise ValueError("Nguoi tra xe khong dung voi nguoi thue cua contract")
-        if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa"]):
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
             raise ValueError("Deposit chua khoa hoac khong con o trang thai cho phep tra xe")
         payload = {
             "hopDongThueId": contract_id,
@@ -897,13 +1046,61 @@ class RentalAppService:
         mine_result = self._mine_and_mirror([tx])
         block = mine_result["block"]
         contract = self.update("contracts", "id", contract_id, {
-            "trangthai": self._db_status(CONTRACT_STATUS_DB, "choKiemTraTraXe"),
-            "danhanlaixe": True,
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "dagiaoxe": False,
+            "danhanlaixe": False,
             "summaryhash": evidence_hash,
             "capnhatluc": now_iso(),
         })
         self._log_service_event("return_vehicle_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
         return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "returnEvidenceHash": evidence_hash}
+
+    def owner_confirm_return(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("owner_confirm_return_attempt", contractId=contract_id, ownerId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if actor_user_id != contract["chuxeid"]:
+            raise ValueError("Nguoi xac nhan nhan lai xe khong dung voi chu xe cua contract")
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc xac nhan nhan lai xe khi hop dong dang o trang thai dang thue")
+        if bool(contract.get("danhanlaixe")):
+            raise ValueError("Chu xe da xac nhan nhan lai xe truoc do")
+        if bool(contract.get("dagiaoxe")):
+            raise ValueError("Khach chua xac nhan tra xe")
+        if not self._deposit_status_in(deposit, ["daKhoa", "tamGiuDoTranhChap"]):
+            raise ValueError("Deposit khong o trang thai cho phep xac nhan tra xe")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "chuXeId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("ownerReturnConfirmed", payload)
+        tx = self.node.make_tx(
+            "OWNER_RETURN_CONFIRMED",
+            contract["addresschuxe"],
+            contract["addressnguoithue"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "ownerConfirmReturn",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "danhanlaixe": True,
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._log_service_event("owner_confirm_return_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "ownerReturnEvidenceHash": evidence_hash}
 
     def create_damage_claim(self, contract_id: str, actor_owner_id: str, req: CreateDamageClaimRequest) -> dict:
         self._log_service_event("damage_claim_attempt", contractId=contract_id, ownerId=actor_owner_id, estimatedCost=req.estimatedcost)
@@ -1320,7 +1517,10 @@ class RentalAppService:
             raise ValueError("Contract da co giao dich tat toan truoc do. Vui long refresh du lieu truoc khi thu lai")
         if self._has_open_dispute(contract_id):
             raise ValueError("Contract dang tranh chap, khong the tat toan truc tiep")
-        self._ensure_contract_status(contract, ["dangThue", "choKiemTraTraXe"], "tat toan")
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc tat toan khi hop dong dang o trang thai cho tat toan")
+        if not bool(contract.get("danhanlaixe")):
+            raise ValueError("Chu xe chua xac nhan nhan lai xe, khong the tat toan")
 
         rental_gross = self._decimal(tong_tien_thanh_toan)
         refund = self._decimal(tong_tien_hoan_lai)

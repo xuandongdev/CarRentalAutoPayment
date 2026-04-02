@@ -1,0 +1,35 @@
+{
+  "blockHeight": 62,
+  "timestamp": "2026-04-02T07:19:22.880574+00:00",
+  "previousHash": "55fad226dcb8a2b67856dab591e1f38ed27d9d7e01fa5050987494629fb6c7ea",
+  "nonce": 0,
+  "merkleRoot": "8c349d8fa28956da094d8fac9f7e5759cdf47e4c4eab53b876580b72474d5d3f",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX2099867FED3B",
+      "txType": "OWNER_RETURN_CONFIRMED",
+      "dataHash": "1b1f48106515d269d552e9fe4395926a23ec0b406c9f5b3fa542415bd4f308eb",
+      "fromAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "toAddress": "0x5f225d3b39de0a60ff7cc06f1361aa57dcae6c1e",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:19:22.760867+00:00",
+      "signature": "4904c2fe32ff7615d28ca7efd7185eaf5abc378585d379502200794af97b33e1",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "035a6fa8-70e1-4e3f-abec-9b1c17967b52",
+        "tienCocId": "3f04cf7c-2a60-4789-801e-67dbe5a19124",
+        "action": "ownerConfirmReturn",
+        "evidenceHash": "97ea534d9d000b2aef5b51c7cb81f3358dc233604b33254b7ec1a0a629fe15f7",
+        "chuXeId": "f9ffc9f9-4ca9-4dc5-a3b1-b727a53c75f5",
+        "ghiChu": "da nhan nha",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 62,
+      "blockHash": "32082624529a4dd101b15371282b74e5b814abc5741f811b26f61b88ca0bd62d",
+      "txIndex": 0
+    }
+  ],
+  "hash": "32082624529a4dd101b15371282b74e5b814abc5741f811b26f61b88ca0bd62d"
+}

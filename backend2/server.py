@@ -15,6 +15,7 @@ from modules.models import (
     AddVehicleRequest,
     AdminConfirmDamageRequest,
     AdminConfirmNoDamageRequest,
+    ConfirmContractStepRequest,
     CreateAvailabilityRequest,
     CreateBookingRequest,
     CreateContractRequest,
@@ -688,12 +689,48 @@ def api_lock_deposit(contract_id: str, current_user: dict = Depends(_require_rec
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.post("/api/contracts/{contract_id}/owner-confirm-handover")
+def api_owner_confirm_handover(contract_id: str, req: ConfirmContractStepRequest, current_user: dict = Depends(_require_recent_step_up)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("chuxeid"), "Chi chu xe hoac admin moi duoc xac nhan giao xe")
+        return require_service().owner_confirm_handover(contract_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/renter-confirm-receive")
+def api_renter_confirm_receive(contract_id: str, req: ConfirmContractStepRequest, current_user: dict = Depends(_require_recent_step_up)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc xac nhan nhan xe")
+        return require_service().renter_confirm_receive(contract_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @app.post("/api/contracts/{contract_id}/return-vehicle")
 def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
         contract = require_service().one("contracts", id=contract_id)
         _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc tra xe")
         return require_service().return_vehicle(contract_id, current_user["user"]["id"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/contracts/{contract_id}/owner-confirm-return")
+def api_owner_confirm_return(contract_id: str, req: ConfirmContractStepRequest, current_user: dict = Depends(_require_recent_step_up)):
+    try:
+        contract = require_service().one("contracts", id=contract_id)
+        _require_same_user_or_admin(current_user, contract.get("chuxeid"), "Chi chu xe hoac admin moi duoc xac nhan nhan lai xe")
+        return require_service().owner_confirm_return(contract_id, current_user["user"]["id"], req)
     except HTTPException:
         raise
     except Exception as exc:
@@ -758,9 +795,8 @@ def api_settle_contract(contract_id: str, req: SettleContractRequest, current_us
     try:
         contract = require_service().one("contracts", id=contract_id)
         renter_id = contract.get("nguoithueid")
-        owner_id = contract.get("chuxeid")
-        if not _is_admin(current_user) and current_user["user"].get("id") not in {renter_id, owner_id}:
-            raise HTTPException(status_code=403, detail="Chi renter, owner lien quan hoac admin moi duoc tat toan contract")
+        if not _is_admin(current_user) and current_user["user"].get("id") != renter_id:
+            raise HTTPException(status_code=403, detail="Chi renter lien quan hoac admin moi duoc tat toan contract")
         return require_service().settle_contract(
             contract_id=contract_id,
             tong_tien_thanh_toan=req.tongtienthanhtoan,
