@@ -1,0 +1,42 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng ký tài khoản</title>
+  <link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1">
+</head>
+<body data-page="register">
+  <header>
+    <h1>Đăng ký tài khoản khách thuê</h1>
+    <nav id="topNav"></nav>
+    <div id="userMeta"></div>
+  </header>
+  <main>
+    <section class="card" style="max-width:640px;margin:auto;">
+      <form id="registerForm">
+        <label>Họ tên
+          <input id="hoTen" data-required="true" autocomplete="name">
+        </label>
+        <label>Email
+          <input id="email" type="email" data-required="true" autocomplete="email">
+        </label>
+        <label>Số điện thoại
+          <input id="soDienThoai" data-required="true" autocomplete="tel">
+        </label>
+        <label>Mật khẩu
+          <input id="password" type="password" data-required="true" autocomplete="new-password">
+        </label>
+        <label>Nhập lại mật khẩu
+          <input id="confirmPassword" type="password" data-required="true" autocomplete="new-password">
+        </label>
+        <button type="submit">Tạo tài khoản</button>
+      </form>
+      <p class="note">Đăng ký public sẽ tạo tài khoản với vai trò mặc định là khách thuê.</p>
+      <div id="registerMessage" class="message"></div>
+    </section>
+  </main>
+  <script src="/frontend/app.js?v=20260330_ux1"></script>
+  <script src="/frontend/pages.js?v=20260330_ux1"></script>
+</body>
+</html>

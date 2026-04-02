@@ -1,0 +1,49 @@
+﻿<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lịch trống xe</title><link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1"></head>
+<body data-page="owner_availability"><header><h1>Lịch trống xe</h1><nav id="topNav"></nav><div id="userMeta"></div></header>
+<main class="owner-workspace">
+  <section class="card owner-page-head">
+    <h2>Lịch trống</h2>
+    <p class="note">Tạo và theo dõi lịch sẵn sàng cho từng xe một cách rõ ràng.</p>
+  </section>
+
+  <section class="card">
+    <div class="owner-action-bar">
+      <div class="owner-filters">
+        <label>Tìm theo xe<input id="ownerAvailabilitySearch" placeholder="Biển số hoặc mã xe"></label>
+        <label>Trạng thái
+          <select id="ownerAvailabilityStatusFilter">
+            <option value="">Tất cả</option>
+            <option value="true">Còn trống</option>
+            <option value="false">Không trống</option>
+          </select>
+        </label>
+      </div>
+      <button id="toggleOwnerAvailabilityFormBtn" type="button">Tạo lịch trống</button>
+    </div>
+    <div id="ownerAvailabilityTable"></div>
+    <div id="ownerAvailabilityEmpty" class="empty-state owner-hide">Chưa có lịch trống nào. Hãy tạo lịch đầu tiên.</div>
+    <div id="ownerAvailabilityMessage" class="message"></div>
+  </section>
+
+  <section id="ownerAvailabilityDetailPanel" class="card owner-hide">
+    <h3>Chi tiết lịch trống</h3>
+    <div id="ownerAvailabilityDetail"></div>
+  </section>
+
+  <section id="ownerAvailabilityFormPanel" class="card owner-form-panel owner-hide">
+    <div class="owner-form-head">
+      <h3>Tạo lịch trống</h3>
+      <button id="closeOwnerAvailabilityFormBtn" type="button" class="table-action-btn">Đóng</button>
+    </div>
+    <form id="availabilityForm" class="owner-form-grid">
+      <label>Xe<select id="xeId" data-required="true"></select></label>
+      <label>Ngày bắt đầu<input id="ngayBatDau" type="datetime-local" data-required="true"></label>
+      <label>Ngày kết thúc<input id="ngayKetThuc" type="datetime-local" data-required="true"></label>
+      <label>Còn trống<select id="conTrong"><option value="true">Có</option><option value="false">Không</option></select></label>
+      <label class="owner-span-2">Ghi chú<textarea id="ghiChu"></textarea></label>
+      <button type="submit">Lưu lịch trống</button>
+    </form>
+  </section>
+</main>
+<script src="/frontend/app.js?v=20260330_ux1"></script><script src="/frontend/pages.js?v=20260330_ux1"></script></body></html>

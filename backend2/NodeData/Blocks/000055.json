@@ -1,0 +1,35 @@
+{
+  "blockHeight": 55,
+  "timestamp": "2026-04-02T07:02:52.548015+00:00",
+  "previousHash": "46d1835ec6de59c88a32ddd2886d3da321092212dc05fc51ac0925f73f3452cd",
+  "nonce": 0,
+  "merkleRoot": "ac4f7d46f64c7cd2ca3dd716da236454a5e3b32bf71802d8ded6f518dc700d29",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX7D7C4B0EE64A",
+      "txType": "OWNER_RETURN_CONFIRMED",
+      "dataHash": "7ed8ea215595f7c8e051fe8aeb806636cf7b25c73c77ac068c114174ad347e34",
+      "fromAddress": "0x46bcb29f42ebd3d4d753ff07f62c85d9627aa674",
+      "toAddress": "0x9f26cd2288bd2faa58b784ae3c8c1c8501e2de2a",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:02:52.425945+00:00",
+      "signature": "de9ea74d1e6d68a8d81cfb66dab0d09e29b990bc4397716a1493b0cb2e9c36b6",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "370aa7ef-094f-4f39-b95b-55eb56eb5b9f",
+        "tienCocId": "4b2523e2-ec37-49d2-bfa6-e2173b013d1b",
+        "action": "ownerConfirmReturn",
+        "evidenceHash": "2033492655996dda15e7e3f52a580373e3e519d8be85ea8ebe69f75a373aec8a",
+        "chuXeId": "f7923eff-9240-45a0-a531-8c1391f7c518",
+        "ghiChu": "Owner received vehicle back",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 55,
+      "blockHash": "766b1986a4f77824ce072fec6c177f5ce8f62c43233aa33a240b77044bae9251",
+      "txIndex": 0
+    }
+  ],
+  "hash": "766b1986a4f77824ce072fec6c177f5ce8f62c43233aa33a240b77044bae9251"
+}

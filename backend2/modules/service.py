@@ -1,4 +1,4 @@
-﻿
+import json
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Optional
 
@@ -21,6 +21,7 @@ from .models import (
     AddVehicleRequest,
     AdminConfirmDamageRequest,
     AdminConfirmNoDamageRequest,
+    ConfirmContractStepRequest,
     CreateBookingRequest,
     CreateContractRequest,
     CreateDamageClaimRequest,
@@ -131,6 +132,45 @@ class RentalAppService:
     def _locked_deposit_amount(self, deposit: dict) -> Decimal:
         amount = self._decimal(deposit.get("sotienkhoacoc"))
         return amount if amount > ZERO else self._decimal(deposit.get("tonghoacoc"))
+
+    def _deposit_status_in(self, deposit: Optional[dict], allowed_statuses: list[str]) -> bool:
+        if deposit is None:
+            return False
+        return deposit.get("trangthai") in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, allowed_statuses)
+
+    def _logical_contract_status(self, contract: dict, deposit: Optional[dict]) -> str:
+        raw_status = str(contract.get("trangthai") or "")
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            return "hoanThanh"
+
+        delivered = bool(contract.get("dagiaoxe"))
+        owner_received = bool(contract.get("danhanlaixe"))
+
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "khoiTao"):
+            if delivered:
+                return "choKhachNhanXe"
+            if self._deposit_status_in(deposit, ["daKhoa", "tamGiuDoTranhChap", "daTatToan", "daHoan", "daChuyenChoOwner"]):
+                return "choChuXacNhanGiaoXe"
+            return "khoiTao"
+
+        if raw_status == self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            if self._deposit_status_in(deposit, ["tamGiuDoTranhChap"]):
+                return "dangTranhChap"
+            if owner_received:
+                return "choTatToan"
+            if delivered:
+                return "dangThue"
+            return "choChuXacNhanTraXe"
+
+        return raw_status
+
+    def _with_contract_flow_state(self, contract: dict, deposit: Optional[dict]) -> dict:
+        logical_status = self._logical_contract_status(contract, deposit)
+        item = dict(contract)
+        item["trangthairaw"] = contract.get("trangthai")
+        item["trangthailogical"] = logical_status
+        item["trangthaihienthi"] = logical_status
+        return item
 
     def _ensure_admin_user_context(self, admin_id: str) -> dict:
         admin = self.one("users", id=admin_id)
@@ -429,67 +469,145 @@ class RentalAppService:
             "mirroredNewTransactions": mirrored_new_transactions,
             "skippedBlocks": skipped_blocks,
         }
-    def add_vehicle(self, req: AddVehicleRequest) -> dict:
-        self._log_service_event("add_vehicle_attempt", ownerEmail=req.owneremail, bienSo=req.bienso)
-        owner = self.one("users", email=req.owneremail)
-        existed = self.maybe_one("vehicles", bienso=req.bienso)
-        if existed:
-            raise ValueError("Bien so da ton tai")
-        vehicle = self.insert("vehicles", {
-            "chuxeid": owner["id"],
-            "bienso": req.bienso,
-            "namsanxuat": req.namsanxuat,
-            "mota": req.mota or f"{req.hangxe} {req.dongxe}",
-            "hangxe": req.hangxe,
-            "dongxe": req.dongxe,
-            "loaixe": req.loaixe,
-            "trangthai": "sanSang",
-            "giatheongay": req.giatheongay,
-            "giatheogio": req.giatheogio,
-            "baohiem": "Chua cap nhat",
-            "dangkiem": "Chua cap nhat",
-            "dangkyxe": "Chua cap nhat",
-            "taoluc": now_iso(),
+
+    def _vehicle_activity_maps(self, vehicle_ids: list[str]) -> tuple[dict[str, int], dict[str, int]]:
+        if not vehicle_ids:
+            return {}, {}
+        pending_map: dict[str, int] = {}
+        renting_map: dict[str, int] = {}
+
+        booking_rows = (
+            self.t("bookings")
+            .select("xeid,trangthai")
+            .in_("xeid", vehicle_ids)
+            .in_("trangthai", ["choXacNhan", "daDuyet", "daTaoHopDong"])
+            .limit(5000)
+            .execute()
+            .data
+            or []
+        )
+        for row in booking_rows:
+            xe_id = row.get("xeid")
+            if xe_id:
+                pending_map[xe_id] = pending_map.get(xe_id, 0) + 1
+
+        contract_rows = (
+            self.t("contracts")
+            .select("xeid,trangthai")
+            .in_("xeid", vehicle_ids)
+            .in_("trangthai", ["khoiTao", "dangThue"])
+            .limit(5000)
+            .execute()
+            .data
+            or []
+        )
+        for row in contract_rows:
+            xe_id = row.get("xeid")
+            if not xe_id:
+                continue
+            if row.get("trangthai") == "dangThue":
+                renting_map[xe_id] = renting_map.get(xe_id, 0) + 1
+            else:
+                pending_map[xe_id] = pending_map.get(xe_id, 0) + 1
+        return pending_map, renting_map
+
+    def _decorate_vehicle_row(self, vehicle: dict, pending_count: int, renting_count: int) -> dict:
+        status = vehicle.get("trangthai")
+        display_code = status
+        display_label = status
+        can_book = False
+
+        if status == "choDuyet":
+            display_code, display_label = "choDuyet", "Chờ duyệt"
+        elif status == "baoTri":
+            display_code, display_label = "baoTri", "Bảo trì"
+        elif status == "ngungHoatDong":
+            display_code, display_label = "ngungHoatDong", "Ngừng hoạt động"
+        elif status == "dangThue" or renting_count > 0:
+            display_code, display_label = "dangChoThue", "Đang cho thuê"
+        elif status == "sanSang" and pending_count > 0:
+            display_code, display_label = "dangCho", "Đang chờ"
+        elif status == "sanSang":
+            display_code, display_label = "sanSang", "Sẵn sàng"
+            can_book = True
+        else:
+            display_code, display_label = str(status or "unknown"), str(status or "unknown")
+
+        return {
+            **vehicle,
+            "displaytrangthai": display_code,
+            "displaytrangthailabel": display_label,
+            "canbook": can_book,
+        }
+
+    def _decorate_vehicle_rows(self, rows: list[dict]) -> list[dict]:
+        vehicle_ids = [row.get("id") for row in rows if row.get("id")]
+        pending_map, renting_map = self._vehicle_activity_maps(vehicle_ids)
+        return [
+            self._decorate_vehicle_row(
+                row,
+                pending_count=pending_map.get(row.get("id"), 0),
+                renting_count=renting_map.get(row.get("id"), 0),
+            )
+            for row in rows
+        ]
+
+    def _vehicle_is_bookable(self, vehicle_id: str) -> bool:
+        pending_map, renting_map = self._vehicle_activity_maps([vehicle_id])
+        return pending_map.get(vehicle_id, 0) == 0 and renting_map.get(vehicle_id, 0) == 0
+
+    def _refresh_vehicle_status_by_activity(self, vehicle_id: str):
+        vehicle = self.one("vehicles", id=vehicle_id)
+        current = vehicle.get("trangthai")
+        if current in {"choDuyet", "baoTri", "ngungHoatDong"}:
+            return
+        _, renting_map = self._vehicle_activity_maps([vehicle_id])
+        target = "dangThue" if renting_map.get(vehicle_id, 0) > 0 else "sanSang"
+        if current != target:
+            self.update("vehicles", "id", vehicle_id, {"trangthai": target, "capnhatluc": now_iso()})
+
+    def _complete_booking_for_contract(self, contract: dict):
+        booking_id = contract.get("dangkyid")
+        if not booking_id:
+            return
+        booking = self.maybe_one("bookings", id=booking_id)
+        if booking is None:
+            return
+        current_status = booking.get("trangthai")
+        if current_status not in {"choXacNhan", "daDuyet", "daTaoHopDong"}:
+            return
+        self.update("bookings", "id", booking_id, {
+            "trangthai": "hoanTat",
             "capnhatluc": now_iso(),
         })
-        self._log_service_event("add_vehicle_success", vehicleId=vehicle.get("id"), bienSo=vehicle.get("bienso"), ownerId=vehicle.get("chuxeid"))
-        return vehicle
 
-    def create_booking(self, req: CreateBookingRequest) -> dict:
-        self._log_service_event("create_booking_attempt", renterEmail=req.renteremail, bienSo=req.bienso)
-        renter = self.one("users", email=req.renteremail)
-        vehicle = self.one("vehicles", bienso=req.bienso)
-        booking = self.insert("bookings", {
-            "nguoidungid": renter["id"],
-            "xeid": vehicle["id"],
-            "songaythue": req.songaythue,
-            "diadiemnhan": req.diadiemnhan,
-            "tongtienthue": req.tongtienthue,
-            "trangthai": "daDuyet",
-            "ghichu": req.ghichu or "Tao tu UI demo",
-            "taoluc": now_iso(),
-            "capnhatluc": now_iso(),
-        })
-        self._log_service_event("create_booking_success", bookingId=booking.get("id"), renterId=booking.get("nguoidungid"), xeId=booking.get("xeid"))
-        return booking
+    def _active_user_wallet(self, user_id: str) -> Optional[dict]:
+        wallets = self.t("wallets").select("*").eq("nguoidungid", user_id).limit(20).execute().data or []
+        if not wallets:
+            return None
+        for wallet in wallets:
+            if wallet.get("status") == "active":
+                return wallet
+        return wallets[0]
 
-    def create_contract_from_booking(self, req: CreateContractRequest) -> dict:
-        self._log_service_event("create_contract_attempt", dangKyId=req.dangkyid, tongTienCoc=req.tongtiencoc)
-        booking = self.one("bookings", id=req.dangkyid)
-        existed = self.maybe_one("contracts", dangkyid=req.dangkyid)
+    def _default_deposit_amount(self, tong_tien_thue: Any) -> float:
+        return self._to_number(self._decimal(tong_tien_thue) * Decimal("0.30"))
+
+    def _create_contract_and_deposit_for_booking(self, booking: dict, tong_tien_coc: float) -> dict:
+        existed = self.maybe_one("contracts", dangkyid=booking["id"])
         if existed:
             raise ValueError("Dang ky nay da co hop dong")
         vehicle = self.one("vehicles", id=booking["xeid"])
         renter = self.one("users", id=booking["nguoidungid"])
         owner = self.one("users", id=vehicle["chuxeid"])
-        renter_wallet = self._require_user_wallet(renter["id"], "nguoi thue")
-        owner_wallet = self._require_user_wallet(owner["id"], "chu xe")
+        renter_wallet = self._active_user_wallet(renter["id"])
+        owner_wallet = self._active_user_wallet(owner["id"])
         contract_hash = sha256_obj({
             "bookingId": booking["id"],
             "xeId": vehicle["id"],
             "nguoiThueId": renter["id"],
             "chuXeId": owner["id"],
-            "tongTienCoc": req.tongtiencoc,
+            "tongTienCoc": tong_tien_coc,
             "createdAt": now_iso(),
         })
         contract = self.insert("contracts", {
@@ -497,13 +615,13 @@ class RentalAppService:
             "xeid": vehicle["id"],
             "nguoithueid": renter["id"],
             "chuxeid": owner["id"],
-            "addressnguoithue": renter_wallet["address"],
-            "addresschuxe": owner_wallet["address"],
+            "addressnguoithue": None if renter_wallet is None else renter_wallet.get("address"),
+            "addresschuxe": None if owner_wallet is None else owner_wallet.get("address"),
             "contracthash": contract_hash,
             "signaturenguoithue": sha256_text("sign|renter|" + contract_hash),
             "signaturechuxe": sha256_text("sign|owner|" + contract_hash),
             "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
-            "tongtiencoc": req.tongtiencoc,
+            "tongtiencoc": tong_tien_coc,
             "tongtienthanhtoan": 0,
             "tongtienhoanlai": 0,
             "dagiaoxe": False,
@@ -514,7 +632,7 @@ class RentalAppService:
         })
         deposit = self.insert("deposits", {
             "hopdongthueid": contract["id"],
-            "tonghoacoc": req.tongtiencoc,
+            "tonghoacoc": tong_tien_coc,
             "thoathuancoc": "Dat coc truoc khi nhan xe",
             "sotienkhoacoc": 0,
             "sotienhoancoc": 0,
@@ -525,9 +643,210 @@ class RentalAppService:
             "taoluc": now_iso(),
             "capnhatluc": now_iso(),
         })
-        self.update("bookings", "id", booking["id"], {"trangthai": "daTaoHopDong", "capnhatluc": now_iso()})
-        self._log_service_event("create_contract_success", contractId=contract.get("id"), bookingId=booking.get("id"), renterId=renter.get("id"), ownerId=owner.get("id"))
-        return {"hopDongThue": contract, "tienCoc": deposit}
+        booking = self.update("bookings", "id", booking["id"], {"trangthai": "daTaoHopDong", "capnhatluc": now_iso()})
+        return {"booking": booking, "hopDongThue": contract, "tienCoc": deposit}
+
+    def _create_booking_contract_via_rpc(self, renter_id: str, req: CreateBookingRequest, so_ngay: int, tong_tien_thue: float, tong_tien_coc: float) -> Optional[dict]:
+        params = {
+            "p_nguoidungid": renter_id,
+            "p_xeid": req.xeid,
+            "p_songaythue": so_ngay,
+            "p_diadiemnhan": req.diadiemnhan,
+            "p_tongtienthue": tong_tien_thue,
+            "p_ghichu": req.ghichu or "Tao tu giao dien nguoi dung",
+            "p_tongtiencoc": tong_tien_coc,
+        }
+        result = self.supabase.rpc("create_booking_with_contract_atomic", params).execute()
+        data = result.data
+        if not data:
+            return None
+        payload = data[0] if isinstance(data, list) else data
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        if not isinstance(payload, dict):
+            return None
+        booking = payload.get("booking")
+        contract = payload.get("hopDongThue")
+        deposit = payload.get("tienCoc")
+        if booking and contract and deposit:
+            return {"booking": booking, "hopDongThue": contract, "tienCoc": deposit}
+        return None
+
+    def list_public_vehicles(self) -> list[dict]:
+        rows = self.t("vehicles").select("*").in_("trangthai", ["sanSang", "choDuyet"]).order("taoluc", desc=True).limit(300).execute().data or []
+        return self._decorate_vehicle_rows(rows)
+
+    def list_owner_vehicles(self, owner_id: str) -> list[dict]:
+        rows = self.t("vehicles").select("*").eq("chuxeid", owner_id).order("taoluc", desc=True).limit(300).execute().data or []
+        return self._decorate_vehicle_rows(rows)
+
+    def list_admin_vehicles(self) -> list[dict]:
+        rows = self.t("vehicles").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        return self._decorate_vehicle_rows(rows)
+
+    def list_owner_availability(self, owner_id: str) -> list[dict]:
+        vehicle_rows = self.list_owner_vehicles(owner_id)
+        vehicle_ids = [row.get("id") for row in vehicle_rows if row.get("id")]
+        if not vehicle_ids:
+            return []
+        return self.t("schedules").select("*").in_("xeid", vehicle_ids).order("ngaybatdau", desc=True).limit(500).execute().data or []
+
+    def list_renter_bookings(self, renter_id: str) -> list[dict]:
+        return self.t("bookings").select("*").eq("nguoidungid", renter_id).order("taoluc", desc=True).limit(300).execute().data or []
+
+    def list_contracts_for_user(self, user_id: str) -> list[dict]:
+        rows = self.t("contracts").select("*").order("taoluc", desc=True).limit(500).execute().data or []
+        filtered = [row for row in rows if row.get("nguoithueid") == user_id or row.get("chuxeid") == user_id]
+        contract_ids = [row.get("id") for row in filtered if row.get("id")]
+        deposits = (
+            self.t("deposits")
+            .select("*")
+            .in_("hopdongthueid", contract_ids)
+            .limit(max(len(contract_ids), 1) * 2)
+            .execute()
+            .data
+            or []
+        ) if contract_ids else []
+        deposit_map = {row.get("hopdongthueid"): row for row in deposits if row.get("hopdongthueid")}
+        return [self._with_contract_flow_state(row, deposit_map.get(row.get("id"))) for row in filtered]
+
+    def list_disputes_for_owner(self, owner_id: str) -> list[dict]:
+        contract_rows = self.t("contracts").select("id,chuxeid").eq("chuxeid", owner_id).limit(500).execute().data or []
+        contract_ids = [row.get("id") for row in contract_rows if row.get("id")]
+        if not contract_ids:
+            return []
+        return self.t("disputes").select("*").in_("hopdongthueid", contract_ids).order("taoluc", desc=True).limit(500).execute().data or []
+
+    def list_deposits_for_renter(self, renter_id: str) -> list[dict]:
+        contract_rows = self.t("contracts").select("id,nguoithueid").eq("nguoithueid", renter_id).limit(500).execute().data or []
+        contract_ids = [row.get("id") for row in contract_rows if row.get("id")]
+        if not contract_ids:
+            return []
+        return self.t("deposits").select("*").in_("hopdongthueid", contract_ids).order("taoluc", desc=True).limit(500).execute().data or []
+
+    def add_availability(self, owner_id: str, xe_id: str, ngay_bat_dau: str, ngay_ket_thuc: str, con_trong: bool, ghi_chu: Optional[str]) -> dict:
+        vehicle = self.one("vehicles", id=xe_id)
+        if vehicle.get("chuxeid") != owner_id:
+            raise ValueError("Ban chi duoc tao lich trong cho xe cua chinh minh")
+        return self.insert("schedules", {
+            "xeid": xe_id,
+            "controng": con_trong,
+            "ghichu": ghi_chu,
+            "ngaybatdau": ngay_bat_dau,
+            "ngayketthuc": ngay_ket_thuc,
+            "taoluc": now_iso(),
+        })
+
+    def update_vehicle_status(self, vehicle_id: str, status: str) -> dict:
+        self.one("vehicles", id=vehicle_id)
+        return self.update("vehicles", "id", vehicle_id, {"trangthai": status, "capnhatluc": now_iso()})
+
+    def add_vehicle(self, owner_id: str, req: AddVehicleRequest) -> dict:
+        self._log_service_event("add_vehicle_attempt", ownerId=owner_id, bienSo=req.bienso)
+        existed = self.maybe_one("vehicles", bienso=req.bienso)
+        if existed:
+            raise ValueError("Bien so da ton tai")
+        vehicle = self.insert("vehicles", {
+            "chuxeid": owner_id,
+            "bienso": req.bienso,
+            "namsanxuat": req.namsanxuat,
+            "mota": req.mota or f"{req.hangxe} {req.dongxe}",
+            "hangxe": req.hangxe,
+            "dongxe": req.dongxe,
+            "loaixe": req.loaixe,
+            "trangthai": "choDuyet",
+            "giatheongay": req.giatheongay,
+            "giatheogio": req.giatheogio,
+            "baohiem": req.baohiem,
+            "dangkiem": req.dangkiem,
+            "dangkyxe": req.dangkyxe,
+            "ngayhethandangkiem": req.ngayhethandangkiem,
+            "taoluc": now_iso(),
+            "capnhatluc": now_iso(),
+        })
+        self._log_service_event("add_vehicle_success", vehicleId=vehicle.get("id"), bienSo=vehicle.get("bienso"), ownerId=vehicle.get("chuxeid"))
+        return vehicle
+
+    def create_booking(self, renter_id: str, req: CreateBookingRequest) -> dict:
+        self._log_service_event("create_booking_attempt", renterId=renter_id, xeId=req.xeid)
+        renter = self.one("users", id=renter_id)
+        if renter.get("vaitro") != "khach":
+            raise ValueError("Chi nguoi dung vai tro khach moi duoc dat xe")
+        if renter.get("trangthai") != "hoatDong":
+            raise ValueError("Tai khoan khong o trang thai hoat dong")
+        vehicle = self.one("vehicles", id=req.xeid)
+        if vehicle.get("trangthai") != "sanSang":
+            raise ValueError("Xe khong o trang thai san sang de dat")
+        if not self._vehicle_is_bookable(vehicle["id"]):
+            raise ValueError("Xe dang cho xu ly booking/hop dong khac, vui long chon xe khac")
+        duplicate_booking = (
+            self.t("bookings")
+            .select("id")
+            .eq("nguoidungid", renter_id)
+            .eq("xeid", vehicle["id"])
+            .in_("trangthai", ["choXacNhan", "daDuyet", "daTaoHopDong"])
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if duplicate_booking:
+            raise ValueError("Ban da co booking dang xu ly cho xe nay")
+        so_ngay = req.songaythue or 1
+        if req.ngaybatdau and req.ngayketthuc:
+            from datetime import datetime
+            start = datetime.fromisoformat(req.ngaybatdau.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(req.ngayketthuc.replace("Z", "+00:00"))
+            diff = (end - start).days
+            so_ngay = diff if diff > 0 else 1
+        tong_tien = self._to_number(self._decimal(vehicle.get("giatheongay")) * Decimal(str(so_ngay)))
+        tong_tien_coc = self._default_deposit_amount(tong_tien)
+
+        try:
+            rpc_result = self._create_booking_contract_via_rpc(renter_id, req, so_ngay, tong_tien, tong_tien_coc)
+            if rpc_result:
+                self._log_service_event("create_booking_success_atomic_rpc", bookingId=rpc_result["booking"].get("id"), renterId=renter_id, xeId=vehicle.get("id"))
+                return {**rpc_result, "note": "Dat xe thanh cong, hop dong da duoc tao tu dong"}
+        except Exception as exc:
+            self._log_service_event("create_booking_rpc_fallback", reason=str(exc), renterId=renter_id, xeId=req.xeid)
+
+        booking = None
+        contract = None
+        deposit = None
+        try:
+            booking = self.insert("bookings", {
+                "nguoidungid": renter_id,
+                "xeid": vehicle["id"],
+                "songaythue": so_ngay,
+                "diadiemnhan": req.diadiemnhan,
+                "tongtienthue": tong_tien,
+                "trangthai": "choXacNhan",
+                "ghichu": req.ghichu or "Tao tu giao dien nguoi dung",
+                "taoluc": now_iso(),
+                "capnhatluc": now_iso(),
+            })
+            created = self._create_contract_and_deposit_for_booking(booking, tong_tien_coc)
+            contract = created["hopDongThue"]
+            deposit = created["tienCoc"]
+            booking = created["booking"]
+        except Exception:
+            if deposit and deposit.get("id"):
+                self.t("deposits").delete().eq("id", deposit["id"]).execute()
+            if contract and contract.get("id"):
+                self.t("contracts").delete().eq("id", contract["id"]).execute()
+            if booking and booking.get("id"):
+                self.t("bookings").delete().eq("id", booking["id"]).execute()
+            raise
+
+        self._log_service_event("create_booking_success", bookingId=booking.get("id"), renterId=booking.get("nguoidungid"), xeId=booking.get("xeid"), contractId=contract.get("id"))
+        return {"booking": booking, "hopDongThue": contract, "tienCoc": deposit, "note": "Dat xe thanh cong, hop dong da duoc tao tu dong"}
+
+    def create_contract_from_booking(self, req: CreateContractRequest) -> dict:
+        self._log_service_event("create_contract_attempt", dangKyId=req.dangkyid, tongTienCoc=req.tongtiencoc)
+        booking = self.one("bookings", id=req.dangkyid)
+        created = self._create_contract_and_deposit_for_booking(booking, req.tongtiencoc)
+        self._log_service_event("create_contract_success", contractId=created["hopDongThue"].get("id"), bookingId=booking.get("id"))
+        return {"hopDongThue": created["hopDongThue"], "tienCoc": created["tienCoc"], "booking": created["booking"]}
 
     def lock_deposit(self, contract_id: str) -> dict:
         self._log_service_event("lock_deposit_attempt", contractId=contract_id)
@@ -588,26 +907,124 @@ class RentalAppService:
             "capnhatluc": now_iso(),
         })
         contract = self.update("contracts", "id", contract_id, {
-            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
-            "dagiaoxe": True,
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
+            "dagiaoxe": False,
+            "danhanlaixe": False,
             "capnhatluc": now_iso(),
         })
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("lock_deposit_success", contractId=contract_id, txHash=txs[0].get("txHash"), blockHeight=block.get("blockHeight"), amount=self._to_number(amount))
         return {"block": block, "transactions": txs, "transaction": txs[0], "hopDongThue": contract, "tienCoc": deposit, "mirror": mine_result["mirror"]}
 
-    def return_vehicle(self, contract_id: str, req: ReturnVehicleRequest) -> dict:
-        self._log_service_event("return_vehicle_attempt", contractId=contract_id, nguoiTraId=req.nguoitraid)
+    def owner_confirm_handover(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("owner_confirm_handover_attempt", contractId=contract_id, ownerId=actor_user_id)
         contract, deposit = self._get_contract_and_deposit(contract_id)
-        self._ensure_contract_status(contract, ["dangThue"], "tra xe")
+        if actor_user_id != contract["chuxeid"]:
+            raise ValueError("Nguoi xac nhan giao xe khong dung voi chu xe cua contract")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            raise ValueError("Contract da hoan thanh, khong the xac nhan giao xe")
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
+            raise ValueError("Can khoa coc truoc khi chu xe xac nhan giao xe")
+        if bool(contract.get("dagiaoxe")):
+            raise ValueError("Chu xe da xac nhan giao xe truoc do")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "chuXeId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("ownerHandoverConfirmed", payload)
+        tx = self.node.make_tx(
+            "OWNER_HANDOVER_CONFIRMED",
+            contract["addresschuxe"],
+            contract["addressnguoithue"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "ownerConfirmHandover",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "khoiTao"),
+            "dagiaoxe": True,
+            "danhanlaixe": False,
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._log_service_event("owner_confirm_handover_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "handoverEvidenceHash": evidence_hash}
+
+    def renter_confirm_receive(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("renter_confirm_receive_attempt", contractId=contract_id, renterId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if actor_user_id != contract["nguoithueid"]:
+            raise ValueError("Nguoi xac nhan nhan xe khong dung voi nguoi thue cua contract")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "hoanThanh"):
+            raise ValueError("Contract da hoan thanh, khong the xac nhan nhan xe")
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
+            raise ValueError("Can khoa coc truoc khi xac nhan nhan xe")
+        if not bool(contract.get("dagiaoxe")):
+            raise ValueError("Chu xe chua xac nhan giao xe")
+        if contract.get("trangthai") == self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Hop dong da o trang thai dang thue, khong the xac nhan nhan xe lap lai")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "nguoiThueId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("renterReceiveConfirmed", payload)
+        tx = self.node.make_tx(
+            "RENTER_RECEIVE_CONFIRMED",
+            contract["addressnguoithue"],
+            contract["addresschuxe"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "renterConfirmReceive",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
+        self._log_service_event("renter_confirm_receive_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "receiveEvidenceHash": evidence_hash}
+
+    def return_vehicle(self, contract_id: str, actor_user_id: str, req: ReturnVehicleRequest) -> dict:
+        self._log_service_event("return_vehicle_attempt", contractId=contract_id, nguoiTraId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc tra xe khi hop dong dang o trang thai dang thue")
         if contract.get("danhanlaixe"):
             raise ValueError("Contract da o sau buoc tra xe, khong the tra xe lap lai")
-        if req.nguoitraid != contract["nguoithueid"]:
+        if not bool(contract.get("dagiaoxe")):
+            raise ValueError("Hop dong khong o buoc dang su dung xe hoac da tra xe truoc do")
+        if actor_user_id != contract["nguoithueid"]:
             raise ValueError("Nguoi tra xe khong dung voi nguoi thue cua contract")
-        if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa"]):
+        if not self._deposit_status_in(deposit, ["daKhoa"]):
             raise ValueError("Deposit chua khoa hoac khong con o trang thai cho phep tra xe")
         payload = {
             "hopDongThueId": contract_id,
-            "nguoiTraId": req.nguoitraid,
+            "nguoiTraId": actor_user_id,
             "ghiChu": req.ghichu,
             "evidenceUrls": req.evidenceurls,
             "evidenceMeta": req.evidencemeta,
@@ -629,20 +1046,69 @@ class RentalAppService:
         mine_result = self._mine_and_mirror([tx])
         block = mine_result["block"]
         contract = self.update("contracts", "id", contract_id, {
-            "trangthai": self._db_status(CONTRACT_STATUS_DB, "choKiemTraTraXe"),
-            "danhanlaixe": True,
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "dagiaoxe": False,
+            "danhanlaixe": False,
             "summaryhash": evidence_hash,
             "capnhatluc": now_iso(),
         })
         self._log_service_event("return_vehicle_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
         return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "returnEvidenceHash": evidence_hash}
-    def create_damage_claim(self, contract_id: str, req: CreateDamageClaimRequest) -> dict:
-        self._log_service_event("damage_claim_attempt", contractId=contract_id, ownerId=req.ownerid, estimatedCost=req.estimatedcost)
+
+    def owner_confirm_return(self, contract_id: str, actor_user_id: str, req: ConfirmContractStepRequest) -> dict:
+        self._log_service_event("owner_confirm_return_attempt", contractId=contract_id, ownerId=actor_user_id)
+        contract, deposit = self._get_contract_and_deposit(contract_id)
+        if actor_user_id != contract["chuxeid"]:
+            raise ValueError("Nguoi xac nhan nhan lai xe khong dung voi chu xe cua contract")
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc xac nhan nhan lai xe khi hop dong dang o trang thai dang thue")
+        if bool(contract.get("danhanlaixe")):
+            raise ValueError("Chu xe da xac nhan nhan lai xe truoc do")
+        if bool(contract.get("dagiaoxe")):
+            raise ValueError("Khach chua xac nhan tra xe")
+        if not self._deposit_status_in(deposit, ["daKhoa", "tamGiuDoTranhChap"]):
+            raise ValueError("Deposit khong o trang thai cho phep xac nhan tra xe")
+
+        payload = {
+            "hopDongThueId": contract_id,
+            "chuXeId": actor_user_id,
+            "ghiChu": req.ghichu,
+            "evidenceUrls": req.evidenceurls,
+            "evidenceMeta": req.evidencemeta,
+        }
+        evidence_hash = self._build_evidence_hash("ownerReturnConfirmed", payload)
+        tx = self.node.make_tx(
+            "OWNER_RETURN_CONFIRMED",
+            contract["addresschuxe"],
+            contract["addressnguoithue"],
+            0,
+            {
+                "hopDongThueId": contract_id,
+                "tienCocId": deposit["id"],
+                "action": "ownerConfirmReturn",
+                "evidenceHash": evidence_hash,
+                **payload,
+            },
+        )
+        mine_result = self._mine_and_mirror([tx])
+        block = mine_result["block"]
+
+        contract = self.update("contracts", "id", contract_id, {
+            "trangthai": self._db_status(CONTRACT_STATUS_DB, "dangThue"),
+            "danhanlaixe": True,
+            "summaryhash": evidence_hash,
+            "capnhatluc": now_iso(),
+        })
+        self._log_service_event("owner_confirm_return_success", contractId=contract_id, txHash=tx.get("txHash"), blockHeight=block.get("blockHeight"))
+        return {"block": block, "transaction": tx, "contract": contract, "mirror": mine_result["mirror"], "ownerReturnEvidenceHash": evidence_hash}
+
+    def create_damage_claim(self, contract_id: str, actor_owner_id: str, req: CreateDamageClaimRequest) -> dict:
+        self._log_service_event("damage_claim_attempt", contractId=contract_id, ownerId=actor_owner_id, estimatedCost=req.estimatedcost)
         contract, deposit = self._get_contract_and_deposit(contract_id)
         self._ensure_contract_status(contract, ["dangThue", "choKiemTraTraXe"], "tao khieu nai hu hai")
         if not contract.get("danhanlaixe"):
             raise ValueError("Chi duoc khieu nai sau khi xe da duoc tra")
-        if req.ownerid != contract["chuxeid"]:
+        if actor_owner_id != contract["chuxeid"]:
             raise ValueError("ownerId khong dung voi chu xe cua contract")
         if deposit.get("trangthai") not in self._allowed_statuses(DEPOSIT_STATUS_ALIASES, ["daKhoa", "tamGiuDoTranhChap"]):
             raise ValueError("Deposit chua khoa ma da tranh chap")
@@ -651,7 +1117,7 @@ class RentalAppService:
 
         payload = {
             "hopDongThueId": contract_id,
-            "ownerId": req.ownerid,
+            "ownerId": actor_owner_id,
             "lyDo": req.lydo,
             "estimatedCost": req.estimatedcost,
             "evidenceUrls": req.evidenceurls,
@@ -716,13 +1182,13 @@ class RentalAppService:
         self._log_service_event("damage_claim_success", contractId=contract_id, disputeId=dispute.get("id"), reportId=report.get("id"), txHash=tx.get("txHash"))
         return {"block": block, "transaction": tx, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
 
-    def admin_confirm_no_damage(self, dispute_id: str, req: AdminConfirmNoDamageRequest) -> dict:
-        self._log_service_event("admin_confirm_no_damage_attempt", disputeId=dispute_id, adminId=req.adminid)
+    def admin_confirm_no_damage(self, dispute_id: str, admin_id: str, req: AdminConfirmNoDamageRequest) -> dict:
+        self._log_service_event("admin_confirm_no_damage_attempt", disputeId=dispute_id, adminId=admin_id)
         self._ensure_system_wallets()
         dispute, contract, deposit, report = self._get_dispute_bundle(dispute_id)
         self._ensure_dispute_status(dispute, ["choAdminXacMinh"], "xac nhan khong hu hai")
-        self._ensure_admin_user_context(req.adminid)
-        admin_wallet = self._require_user_wallet(req.adminid, "admin")
+        self._ensure_admin_user_context(admin_id)
+        admin_wallet = self._require_user_wallet(admin_id, "admin")
         locked = self._locked_deposit_amount(deposit)
         if locked <= ZERO:
             raise ValueError("Deposit khong con so tien dang khoa de hoan")
@@ -735,7 +1201,7 @@ class RentalAppService:
         payload = {
             "tranhChapId": dispute_id,
             "hopDongThueId": contract["id"],
-            "adminId": req.adminid,
+            "adminId": admin_id,
             "decisionNote": req.decisionnote,
             "evidenceMeta": req.evidencemeta,
             "decision": "khongCoHuHai",
@@ -828,16 +1294,18 @@ class RentalAppService:
             "summaryhash": decision_hash,
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("admin_confirm_no_damage_success", disputeId=dispute_id, blockHeight=block.get("blockHeight"), refundTx=txs[1].get("txHash"), refundAmount=self._to_number(locked))
         return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
 
-    def admin_confirm_damage(self, dispute_id: str, req: AdminConfirmDamageRequest) -> dict:
-        self._log_service_event("admin_confirm_damage_attempt", disputeId=dispute_id, adminId=req.adminid, approvedCost=req.approvedcost)
+    def admin_confirm_damage(self, dispute_id: str, admin_id: str, req: AdminConfirmDamageRequest) -> dict:
+        self._log_service_event("admin_confirm_damage_attempt", disputeId=dispute_id, adminId=admin_id, approvedCost=req.approvedcost)
         self._ensure_system_wallets()
         dispute, contract, deposit, report = self._get_dispute_bundle(dispute_id)
         self._ensure_dispute_status(dispute, ["choAdminXacMinh"], "xac nhan co hu hai")
-        self._ensure_admin_user_context(req.adminid)
-        admin_wallet = self._require_user_wallet(req.adminid, "admin")
+        self._ensure_admin_user_context(admin_id)
+        admin_wallet = self._require_user_wallet(admin_id, "admin")
         locked = self._locked_deposit_amount(deposit)
         approved_cost = self._decimal(req.approvedcost)
         if locked <= ZERO:
@@ -857,7 +1325,7 @@ class RentalAppService:
         payload = {
             "tranhChapId": dispute_id,
             "hopDongThueId": contract["id"],
-            "adminId": req.adminid,
+            "adminId": admin_id,
             "approvedCost": self._to_number(approved_cost),
             "decisionNote": req.decisionnote,
             "evidenceMeta": req.evidencemeta,
@@ -1026,6 +1494,8 @@ class RentalAppService:
             "summaryhash": decision_hash,
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("admin_confirm_damage_success", disputeId=dispute_id, blockHeight=block.get("blockHeight"), gross=self._to_number(approved_cost), fee=self._to_number(split["fee_amount"]), net=self._to_number(split["net_amount"]), refund=self._to_number(refund))
         return {"block": block, "transactions": txs, "contract": contract, "deposit": deposit, "dispute": dispute, "damageReport": report, "mirror": mine_result["mirror"]}
 
@@ -1033,9 +1503,24 @@ class RentalAppService:
         self._log_service_event("settle_contract_attempt", contractId=contract_id, tongTienThanhToan=tong_tien_thanh_toan, tongTienHoanLai=tong_tien_hoan_lai)
         self._ensure_system_wallets()
         contract, deposit = self._get_contract_and_deposit(contract_id)
+        existing_settlement_txs = (
+            self.t("transactions")
+            .select("txhash,txtype")
+            .eq("hopdongthueid", contract_id)
+            .in_("txtype", ["SETTLE_PAYMENT", "RENTAL_PAYMENT_GROSS", "PAYOUT_DEPOSIT_TO_OWNER", "REFUND_DEPOSIT"])
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if existing_settlement_txs:
+            raise ValueError("Contract da co giao dich tat toan truoc do. Vui long refresh du lieu truoc khi thu lai")
         if self._has_open_dispute(contract_id):
             raise ValueError("Contract dang tranh chap, khong the tat toan truc tiep")
-        self._ensure_contract_status(contract, ["dangThue", "choKiemTraTraXe"], "tat toan")
+        if contract.get("trangthai") != self._db_status(CONTRACT_STATUS_DB, "dangThue"):
+            raise ValueError("Chi duoc tat toan khi hop dong dang o trang thai cho tat toan")
+        if not bool(contract.get("danhanlaixe")):
+            raise ValueError("Chu xe chua xac nhan nhan lai xe, khong the tat toan")
 
         rental_gross = self._decimal(tong_tien_thanh_toan)
         refund = self._decimal(tong_tien_hoan_lai)
@@ -1128,6 +1613,8 @@ class RentalAppService:
             "trangthai": self._db_status(DEPOSIT_STATUS_DB, "daHoan" if refund > ZERO and deposit_payout_gross == ZERO else "daTatToan"),
             "capnhatluc": now_iso(),
         })
+        self._complete_booking_for_contract(contract)
+        self._refresh_vehicle_status_by_activity(contract["xeid"])
         self._log_service_event("settle_contract_success", contractId=contract_id, blockHeight=block.get("blockHeight"), rentalGross=self._to_number(rental_gross), rentalFee=self._to_number(rental_split["fee_amount"]), rentalNet=self._to_number(rental_split["net_amount"]), depositPayoutGross=self._to_number(deposit_payout_gross), refund=self._to_number(refund))
         return {"block": block, "transactions": txs, "hopDongThue": contract, "tienCoc": deposit, "mirror": mine_result["mirror"]}
 
@@ -1258,7 +1745,6 @@ class RentalAppService:
         }
 
     def overview(self) -> dict:
-        self._ensure_system_wallets()
         chain = self.node.export_chain()
         blocks = chain.get("blocks", [])
         local_meta = chain.get("meta", {})
@@ -1270,6 +1756,10 @@ class RentalAppService:
         sync_status = "localOnly" if db_height is None and db_hash is None else ("synced" if local_height == db_height and local_hash == db_hash else "outOfSync")
         payload = {"users": [], "wallets": [], "vehicles": [], "bookings": [], "contracts": [], "deposits": [], "damageReports": [], "disputes": [], "transactions": [], "events": []}
         warnings = {}
+        try:
+            self._ensure_system_wallets()
+        except Exception as exc:
+            warnings["systemWallets"] = str(exc)
         for response_key, table_key in [("users", "users"), ("wallets", "wallets"), ("vehicles", "vehicles"), ("bookings", "bookings"), ("contracts", "contracts"), ("deposits", "deposits"), ("damageReports", "damage_reports"), ("disputes", "disputes"), ("transactions", "transactions"), ("events", "events")]:
             rows, error = self.safe_list_rows(table_key, 30)
             payload[response_key] = rows
@@ -1278,11 +1768,40 @@ class RentalAppService:
         if db_latest_error:
             warnings["dbLatestBlock"] = db_latest_error
         wallet_rows = payload["wallets"]
-        total_wallet_balance = sum(self._decimal(row.get("balance")) for row in wallet_rows)
-        total_locked_balance = sum(self._decimal(row.get("lockedbalance")) for row in wallet_rows)
-        fee_wallet = self._require_wallet_by_address(PLATFORM_FEE_ADDRESS)
-        escrow_wallet = self._require_wallet_by_address(SYSTEM_ESCROW_ADDRESS)
-        finance = self.finance_summary()
+        total_wallet_balance = ZERO
+        total_locked_balance = ZERO
+        for row in wallet_rows:
+            try:
+                total_wallet_balance += self._decimal(row.get("balance"))
+                total_locked_balance += self._decimal(row.get("lockedbalance"))
+            except Exception as exc:
+                warnings["walletBalances"] = str(exc)
+                break
+
+        fee_wallet_balance = ZERO
+        escrow_wallet_balance = ZERO
+        try:
+            fee_wallet = self._get_wallet_by_address(PLATFORM_FEE_ADDRESS)
+            if fee_wallet:
+                fee_wallet_balance = self._decimal(fee_wallet.get("balance"))
+        except Exception as exc:
+            warnings["platformFeeWallet"] = str(exc)
+        try:
+            escrow_wallet = self._get_wallet_by_address(SYSTEM_ESCROW_ADDRESS)
+            if escrow_wallet:
+                escrow_wallet_balance = self._decimal(escrow_wallet.get("balance"))
+        except Exception as exc:
+            warnings["escrowWallet"] = str(exc)
+
+        finance = {
+            "totalPlatformFeesCollected": 0.0,
+            "totalGrossPayments": 0.0,
+            "totalNetPayouts": 0.0,
+        }
+        try:
+            finance = self.finance_summary()
+        except Exception as exc:
+            warnings["financeSummary"] = str(exc)
         return {
             **payload,
             "warnings": warnings,
@@ -1294,8 +1813,8 @@ class RentalAppService:
             "nodeChainMeta": local_meta,
             "latestBlock": blocks[-1] if blocks else None,
             "chain": chain,
-            "platformFeeWalletBalance": self._to_number(fee_wallet.get("balance")),
-            "escrowWalletBalance": self._to_number(escrow_wallet.get("balance")),
+            "platformFeeWalletBalance": self._to_number(fee_wallet_balance),
+            "escrowWalletBalance": self._to_number(escrow_wallet_balance),
             "totalWalletBalance": self._to_number(total_wallet_balance),
             "totalLockedBalance": self._to_number(total_locked_balance),
             "totalFeesCollected": finance["totalPlatformFeesCollected"],
@@ -1303,3 +1822,4 @@ class RentalAppService:
             "totalNetPayouts": finance["totalNetPayouts"],
             "platformFeeRate": PLATFORM_FEE_RATE,
         }
+

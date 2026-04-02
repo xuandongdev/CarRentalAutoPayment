@@ -1,3 +1,127 @@
+# FLOW HỆ THỐNG (server_test)
+
+Tài liệu này mô tả vai trò từng file và luồng xử lý nghiệp vụ thuê xe theo đúng code hiện tại.
+
+
+
+
+---
+
+## 1) Vai trò từng file
+
+### `Server.py`
+File chạy chính, điều phối toàn bộ demo:
+- Khởi tạo blockchain và service
+- Tạo tài khoản renter/owner
+- Tạo hợp đồng
+- Khóa cọc, ghi nhận usage, tất toán
+- Mine block cho các giao dịch pending
+- Xuất chain ra JSON
+
+### `Service/RentalService.py`
+Lớp nghiệp vụ thuê xe:
+- Tạo `RentalContract`
+- Tạo `Transaction` cho các bước `DEPOSIT_LOCK`, `RENTAL_PAYMENT`, `DEPOSIT_REFUND`
+- Đẩy giao dịch sang `Blockchain`
+
+### `Blockchain.py`
+Lõi blockchain, quản lý state:
+- `accounts`, `contracts`, `pendingTransactions`, `chain`
+- Tạo genesis block
+- Validate và nhận transaction
+- Mine block từ pending transactions
+- Áp dụng transaction để cập nhật account + contract
+- Kiểm tra tính hợp lệ chain
+- Export JSON
+
+### `Block.py`
+Mô hình block:
+- Chứa danh sách transaction
+- Tính `merkleRoot`
+- Tính `blockHash`
+
+### `Transaction.py`
+Mô hình giao dịch:
+- Dữ liệu giao dịch và metadata
+- Dữ liệu để ký
+- Ký giao dịch
+- Tính `txHash`
+
+### `Account.py`
+Mô hình tài khoản (`AccountState`):
+- Quản lý số dư khả dụng
+- Quản lý số dư khóa (`lockedBalance`)
+- `credit`, `debit`, `lock_funds`, `unlock_funds`, `consume_locked_funds`
+
+### `RentalContract.py`
+Mô hình hợp đồng thuê:
+- Thông tin booking/vehicle/renter/owner
+- Tiền cọc, trạng thái hợp đồng
+- `usageSummary`, phí phát sinh, tổng tiền thanh toán, hoàn cọc
+
+### `Service/HashService.py`
+Tiện ích hash dùng chung:
+- `sha256_text`, `sha256_obj`
+- `calc_merkle_root`
+- `now_iso`
+
+---
+
+## 2) Flow nghiệp vụ chuẩn
+
+### Bước 0: Khởi tạo
+1. `Server.py` tạo `Blockchain`
+2. `Blockchain` tự tạo genesis block
+3. `Server.py` tạo `RentalService(blockchain)`
+
+### Bước 1: Tạo tài khoản
+1. Nhập thông tin renter và owner (`ownerName`, `balance`, `secret`)
+2. Hệ thống tự hash để tạo `address` ví
+3. Tạo 2 object `AccountState`
+4. Gọi `blockchain.register_account(...)`
+
+### Bước 2: Tạo hợp đồng
+1. Nhập thông tin hợp đồng (`contractId`, `bookingId`, `vehicleId`, `depositAmount`)
+2. Gọi `RentalService.create_contract(...)`
+3. Contract được lưu vào `blockchain.contracts`
+
+### Bước 3: Khóa cọc
+1. Gọi `RentalService.lock_deposit(contractId, renter_secret)`
+2. Tạo transaction `DEPOSIT_LOCK` và ký
+3. Giao dịch được thêm vào `blockchain.pendingTransactions`
+4. Khi mine:
+   - Tạo block mới
+   - Apply transaction: trừ balance renter, tăng `lockedBalance`, cập nhật contract `lockedDeposit` + status
+   - Đánh dấu tx `CONFIRMED`
+
+### Bước 4: Ghi nhận usage
+1. Nhập thông tin sử dụng xe
+2. Gọi `RentalService.record_usage(...)`
+3. Contract cập nhật `usageSummary` và `usageSummaryHash`
+
+### Bước 5: Tất toán hợp đồng
+1. Gọi `RentalService.settle_contract(...)`
+2. Service tạo `RENTAL_PAYMENT`
+3. Nếu có hoàn cọc, tạo thêm `DEPOSIT_REFUND`
+4. Đưa các tx vào pending
+5. Khi mine:
+   - Apply `RENTAL_PAYMENT`: chuyển tiền cho owner (ưu tiên dùng lockedBalance của renter)
+   - Apply `DEPOSIT_REFUND`: hoàn phần dư cọc về renter
+   - Contract chuyển trạng thái hoàn tất
+
+### Bước 6: Xuất dữ liệu
+1. Gọi `blockchain.export_to_json("data/chain.json")`
+2. Ghi toàn bộ chain + state hiện tại ra file JSON
+
+---
+
+## 3) Tóm tắt ngắn
+
+`Server.py` điều phối flow, `Service/RentalService.py` xử lý nghiệp vụ thuê xe, `Blockchain.py` xác thực + ghi nhận giao dịch thành block, các model (`Account`, `Transaction`, `Block`, `RentalContract`) giữ dữ liệu, và `Service/HashService.py` cung cấp hàm hash/timestamp dùng chung.
+
+---
+
+## 4) Chain mẫu (kết quả chạy thực tế)
 ﻿# CarRentalAutoPayment - Backend2 Hybrid Demo
 
 `backend2` la phien ban backend demo cho bai toan thue xe co ket hop:
@@ -381,6 +505,13 @@ Vi du block that tu `backend2/NodeData/Blocks/000019.json`:
 }
 ```
 
+
+cd "d:\6. Blockchain\blockchain_code\code\CarRentalAutoPayment\backend2"
+.\.venv\Scripts\Activate.ps1
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+python server.py
 Day la vi du ro nhat cho viec blockchain local dang ghi nhan du `gross / fee / net` trong cung mot quyet dinh tranh chap.
 
 ## 6.9. Settle contract khi khong tranh chap

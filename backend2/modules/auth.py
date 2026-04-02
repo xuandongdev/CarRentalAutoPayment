@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 import hmac
 import json
 import secrets
@@ -19,9 +19,9 @@ from supabase import Client
 from .auth_models import (
     LoginRequest,
     LoginResponse,
+    MeResponse,
     RegisterRequest,
     RegisterResponse,
-    MeResponse,
     WalletNonceRequest,
     WalletNonceResponse,
     WalletUnlinkRequest,
@@ -31,6 +31,8 @@ from .auth_models import (
 )
 from .config import JWT_EXPIRE_MINUTES, JWT_SECRET, SIWE_DOMAIN, SIWE_URI, SYSTEM_ESCROW_ADDRESS, TABLES
 from .utils import now_iso, sha256_text
+
+ALLOWED_WALLET_PURPOSES = {"link_wallet", "login_wallet", "step_up"}
 
 
 class AuthService:
@@ -65,9 +67,13 @@ class AuthService:
             raise ValueError(f"Update {TABLES[table_key]} that bai")
         return result.data[0]
 
+    def _normalize_wallet(self, address: str) -> str:
+        return str(address or "").strip().lower()
+
     def _find_user_by_identifier(self, identifier: str) -> Optional[dict]:
+        normalized = str(identifier or "").strip()
         for field in ("email", "sodienthoai"):
-            user = self.maybe_one("users", **{field: identifier})
+            user = self.maybe_one("users", **{field: normalized})
             if user:
                 return user
         return None
@@ -89,7 +95,7 @@ class AuthService:
         return base64.urlsafe_b64encode(value).rstrip(b"=").decode("utf-8")
 
     def _b64url_decode(self, value: str) -> bytes:
-        padding = '=' * (-len(value) % 4)
+        padding = "=" * (-len(value) % 4)
         return base64.urlsafe_b64decode(value + padding)
 
     def _encode_jwt(self, payload: dict) -> str:
@@ -123,7 +129,21 @@ class AuthService:
             "soDienThoai": user.get("sodienthoai") or user.get("soDienThoai"),
             "vaiTro": user.get("vaitro") or user.get("vaiTro"),
             "trangThai": user.get("trangthai") or user.get("trangThai"),
+            "diaChi": user.get("diachi") or user.get("diaChi"),
+            "cccd": user.get("cccd"),
+            "diemDanhGiaTb": user.get("diemdanhgiatb") or user.get("diemDanhGiaTb"),
+            "lanDangNhapCuoi": user.get("landangnhapcuoi") or user.get("lanDangNhapCuoi"),
         }
+
+    def _ensure_user_login_allowed(self, user: dict):
+        trang_thai = user.get("trangthai") or user.get("trangThai")
+        if trang_thai == "hoatDong":
+            return
+        if trang_thai == "tamKhoa":
+            raise ValueError("Tai khoan dang tam khoa")
+        if trang_thai == "ngungHoatDong":
+            raise ValueError("Tai khoan da ngung hoat dong")
+        raise ValueError("Tai khoan khong o trang thai cho phep dang nhap")
 
     def _active_session(self, jti: str) -> Optional[dict]:
         session = self.maybe_one("auth_sessions", jti=jti)
@@ -147,46 +167,13 @@ class AuthService:
         details = " ".join(f"{key}={value}" for key, value in fields.items() if value is not None)
         print(f"[AUTH] {now_iso()} action={action} {details}".strip())
 
-
     def _safe_touch_session(self, jti: str):
         try:
             self.update("auth_sessions", "jti", jti, {"lastseenat": now_iso()})
         except Exception as exc:
             self._log_auth_event("session_touch_skipped", jti=jti, reason=str(exc))
 
-    def register(self, req: RegisterRequest) -> RegisterResponse:
-        if not req.email and not req.sodienthoai:
-            raise ValueError("Can cung cap it nhat email hoac soDienThoai")
-        if req.email and self.maybe_one("users", email=req.email):
-            raise ValueError("Email da ton tai")
-        if req.sodienthoai and self.maybe_one("users", sodienthoai=req.sodienthoai):
-            raise ValueError("So dien thoai da ton tai")
-        self._log_auth_event("register_attempt", email=req.email, soDienThoai=req.sodienthoai)
-        user = self.insert("users", {
-            "hoten": req.hoten,
-            "email": req.email,
-            "sodienthoai": req.sodienthoai,
-            "mkhash": self._hash_password_for_storage(req.password),
-            "vaitro": "khach",
-            "trangthai": "hoatDong",
-            "diemdanhgiatb": 0,
-            "taoluc": now_iso(),
-            "capnhatluc": now_iso(),
-        })
-        self._log_auth_event("register_success", userId=user.get("id"), email=user.get("email"), soDienThoai=user.get("sodienthoai"))
-        return RegisterResponse(user=self._sanitize_user(user), note="Dang ky thanh cong")
-
-    def login(self, req: LoginRequest) -> LoginResponse:
-        self._log_auth_event("login_attempt", identifier=req.identifier)
-        user = self._find_user_by_identifier(req.identifier)
-        if user is None or not self._verify_password(req.password, user.get("mkhash", "")):
-            self._log_auth_event("login_failed", identifier=req.identifier, reason="invalid_credentials")
-            raise ValueError("Thong tin dang nhap khong hop le")
-        if (user.get("trangthai") or user.get("trangThai")) != "hoatDong":
-            self._log_auth_event("login_failed", identifier=req.identifier, userId=user.get("id"), reason="inactive_user")
-            raise ValueError("Tai khoan khong o trang thai cho phep dang nhap")
-
-        self.update("users", "id", user["id"], {"landangnhapcuoi": now_iso(), "capnhatluc": now_iso()})
+    def _issue_session_for_user(self, user: dict) -> dict:
         now_ts = datetime.now(timezone.utc)
         expires_at = now_ts + timedelta(minutes=JWT_EXPIRE_MINUTES)
         jti = f"SES{uuid4().hex}"
@@ -197,17 +184,65 @@ class AuthService:
             "exp": int(expires_at.timestamp()),
         }
         token = self._encode_jwt(payload)
-        self.insert("auth_sessions", {
-            "jti": jti,
-            "nguoidungid": user["id"],
-            "tokenhash": sha256_text(token),
-            "createdat": now_iso(),
-            "expiresat": expires_at.isoformat(),
-            "revokedat": None,
-            "lastseenat": now_iso(),
-        })
-        self._log_auth_event("login_success", userId=user.get("id"), identifier=req.identifier, jti=jti)
-        return LoginResponse(accessToken=token, expiresIn=JWT_EXPIRE_MINUTES * 60, user=self._sanitize_user(user))
+        session = self.insert(
+            "auth_sessions",
+            {
+                "jti": jti,
+                "nguoidungid": user["id"],
+                "tokenhash": sha256_text(token),
+                "createdat": now_iso(),
+                "expiresat": expires_at.isoformat(),
+                "revokedat": None,
+                "lastseenat": now_iso(),
+            },
+        )
+        return {
+            "accessToken": token,
+            "tokenType": "bearer",
+            "expiresIn": JWT_EXPIRE_MINUTES * 60,
+            "session": {"jti": session.get("jti"), "expiresAt": session.get("expiresat")},
+            "user": self._sanitize_user(user),
+        }
+
+    def register(self, req: RegisterRequest) -> RegisterResponse:
+        if not req.email and not req.sodienthoai:
+            raise ValueError("Can cung cap it nhat email hoac soDienThoai")
+        if req.email and self.maybe_one("users", email=req.email):
+            raise ValueError("Email da ton tai")
+        if req.sodienthoai and self.maybe_one("users", sodienthoai=req.sodienthoai):
+            raise ValueError("So dien thoai da ton tai")
+        self._log_auth_event("register_attempt", email=req.email, soDienThoai=req.sodienthoai)
+        user = self.insert(
+            "users",
+            {
+                "hoten": req.hoten,
+                "email": req.email,
+                "sodienthoai": req.sodienthoai,
+                "mkhash": self._hash_password_for_storage(req.password),
+                "vaitro": "khach",
+                "trangthai": "hoatDong",
+                "diemdanhgiatb": 0,
+                "taoluc": now_iso(),
+                "capnhatluc": now_iso(),
+            },
+        )
+        self._log_auth_event(
+            "register_success", userId=user.get("id"), email=user.get("email"), soDienThoai=user.get("sodienthoai")
+        )
+        return RegisterResponse(user=self._sanitize_user(user), note="Dang ky thanh cong")
+
+    def login(self, req: LoginRequest) -> LoginResponse:
+        self._log_auth_event("login_attempt", identifier=req.identifier)
+        user = self._find_user_by_identifier(req.identifier)
+        if user is None or not self._verify_password(req.password, user.get("mkhash", "")):
+            self._log_auth_event("login_failed", identifier=req.identifier, reason="invalid_credentials")
+            raise ValueError("Thong tin dang nhap khong hop le")
+
+        self._ensure_user_login_allowed(user)
+        self.update("users", "id", user["id"], {"landangnhapcuoi": now_iso(), "capnhatluc": now_iso()})
+        issued = self._issue_session_for_user(user)
+        self._log_auth_event("login_success", userId=user.get("id"), identifier=req.identifier, jti=issued["session"]["jti"])
+        return LoginResponse(accessToken=issued["accessToken"], expiresIn=issued["expiresIn"], user=issued["user"])
 
     def get_current_user(self, token: str) -> dict:
         payload = self._decode_jwt(token)
@@ -215,14 +250,20 @@ class AuthService:
         if session is None:
             raise HTTPException(status_code=401, detail="Session khong hop le hoac da logout")
         user = self.one("users", id=payload["sub"])
-        if (user.get("trangthai") or user.get("trangThai")) != "hoatDong":
-            raise HTTPException(status_code=403, detail="Tai khoan khong con hoat dong")
+        try:
+            self._ensure_user_login_allowed(user)
+        except ValueError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
         self._safe_touch_session(payload["jti"])
         return {"user": user, "session": session, "payload": payload}
 
     def me(self, token: str) -> MeResponse:
         auth_context = self.get_current_user(token)
-        return MeResponse(user=self._sanitize_user(auth_context["user"]), wallets=self._list_wallets_for_user(auth_context["user"]["id"]), session={"jti": auth_context["session"].get("jti"), "expiresAt": auth_context["session"].get("expiresat")})
+        return MeResponse(
+            user=self._sanitize_user(auth_context["user"]),
+            wallets=self._list_wallets_for_user(auth_context["user"]["id"]),
+            session={"jti": auth_context["session"].get("jti"), "expiresAt": auth_context["session"].get("expiresat")},
+        )
 
     def logout(self, token: str) -> dict:
         payload = self._decode_jwt(token)
@@ -234,96 +275,265 @@ class AuthService:
         self._log_auth_event("logout_success", userId=session.get("nguoidungid"), jti=payload.get("jti"))
         return {"loggedOut": True}
 
-    def _build_siwe_message(self, wallet_address: str, chain_id: int, nonce: str, purpose: str) -> str:
+    def _validate_wallet_purpose(self, purpose: str) -> str:
+        normalized = str(purpose or "").strip().lower()
+        if normalized not in ALLOWED_WALLET_PURPOSES:
+            raise ValueError("purpose khong hop le")
+        return normalized
+
+    def _get_wallet_by_address(self, wallet_address: str) -> Optional[dict]:
+        normalized = self._normalize_wallet(wallet_address)
+        wallet = self.maybe_one("wallets", address=normalized)
+        if wallet is None and normalized != wallet_address:
+            wallet = self.maybe_one("wallets", address=wallet_address)
+        return wallet
+
+    def _build_siwe_message(self, wallet_address: str, chain_id: int, nonce: str, purpose: str, expires_at_iso: str) -> str:
         issued_at = now_iso()
-        statement = "Lien ket vi voi tai khoan CarRentalAutoPayment" if purpose == "link_wallet" else "Dang nhap vao CarRentalAutoPayment"
+        statements = {
+            "link_wallet": "Xac thuc de lien ket vi voi tai khoan CarRentalAutoPayment.",
+            "login_wallet": "Xac thuc dang nhap CarRentalAutoPayment bang vi MetaMask.",
+            "step_up": "Xac thuc bo sung cho thao tac blockchain nhay cam trong CarRentalAutoPayment.",
+        }
+        statement = statements.get(purpose, "Xac thuc wallet cho CarRentalAutoPayment.")
         return (
             f"{SIWE_DOMAIN} wants you to sign in with your Ethereum account:\n"
             f"{wallet_address}\n\n"
-            f"{statement}\n\n"
+            f"{statement}\n"
+            f"Thong diep nay KHONG tao giao dich on-chain va KHONG yeu cau private key.\n\n"
             f"URI: {SIWE_URI}\n"
             f"Version: 1\n"
             f"Chain ID: {chain_id}\n"
             f"Nonce: {nonce}\n"
             f"Issued At: {issued_at}\n"
+            f"Expiration Time: {expires_at_iso}\n"
             f"Request ID: {purpose}"
         )
 
-    def create_wallet_nonce(self, current_user: dict, req: WalletNonceRequest) -> WalletNonceResponse:
-        nonce = secrets.token_hex(8)
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-        message = self._build_siwe_message(req.walletaddress, req.chainid, nonce, req.purpose)
-        self._log_auth_event("wallet_nonce_created", userId=current_user.get("id"), walletAddress=req.walletaddress.lower(), purpose=req.purpose, chainId=req.chainid)
-        challenge = self.insert("wallet_auth_challenges", {
-            "nguoidungid": current_user["id"],
-            "walletaddress": req.walletaddress.lower(),
-            "nonce": nonce,
-            "purpose": req.purpose,
-            "siwemessage": message,
-            "chainid": req.chainid,
-            "expiresat": expires_at.isoformat(),
-            "usedat": None,
-            "createdat": now_iso(),
-        })
-        return WalletNonceResponse(walletAddress=challenge["walletaddress"], nonce=challenge["nonce"], message=challenge["siwemessage"], expiresAt=challenge["expiresat"], purpose=challenge["purpose"])
+    def create_wallet_nonce(self, current_user: Optional[dict], req: WalletNonceRequest) -> WalletNonceResponse:
+        purpose = self._validate_wallet_purpose(req.purpose)
+        normalized_wallet = self._normalize_wallet(req.walletaddress)
+        chain_id = int(req.chainid or 1)
 
-    def _get_active_challenge(self, user_id: str, wallet_address: str, purpose: str) -> dict:
-        result = self.t("wallet_auth_challenges").select("*").eq("nguoidungid", user_id).eq("walletaddress", wallet_address.lower()).eq("purpose", purpose).order("createdat", desc=True).limit(10).execute()
-        for challenge in result.data or []:
-            if challenge.get("usedat"):
-                continue
-            expires_at = datetime.fromisoformat(challenge["expiresat"].replace("Z", "+00:00"))
-            if expires_at < datetime.now(timezone.utc):
+        challenge_user = None
+        wallet = None
+        if purpose == "login_wallet":
+            wallet = self._get_wallet_by_address(normalized_wallet)
+            if wallet is None or not wallet.get("nguoidungid"):
+                raise ValueError("Vi chua duoc lien ket voi tai khoan. Vui long dang nhap bang tai khoan de lien ket vi truoc.")
+            if str(wallet.get("status") or "").lower() != "active":
+                raise ValueError("Vi khong o trang thai hoat dong")
+            challenge_user = self.one("users", id=wallet.get("nguoidungid"))
+            self._ensure_user_login_allowed(challenge_user)
+        else:
+            if current_user is None:
+                raise HTTPException(status_code=401, detail="Can dang nhap bang tai khoan de thuc hien thao tac nay")
+            challenge_user = current_user
+            self._ensure_user_login_allowed(challenge_user)
+            if purpose == "step_up":
+                wallet = self._get_wallet_by_address(normalized_wallet)
+                if wallet is None or wallet.get("nguoidungid") != challenge_user.get("id"):
+                    raise ValueError("Vi step-up phai la vi da lien ket voi tai khoan hien tai")
+                if str(wallet.get("status") or "").lower() != "active":
+                    raise ValueError("Vi lien ket hien khong o trang thai active")
+
+        nonce = secrets.token_urlsafe(18)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+        expires_at_iso = expires_at.isoformat()
+        message = self._build_siwe_message(normalized_wallet, chain_id, nonce, purpose, expires_at_iso)
+        challenge = self.insert(
+            "wallet_auth_challenges",
+            {
+                "nguoidungid": challenge_user["id"],
+                "walletaddress": normalized_wallet,
+                "nonce": nonce,
+                "purpose": purpose,
+                "siwemessage": message,
+                "chainid": chain_id,
+                "expiresat": expires_at_iso,
+                "usedat": None,
+                "createdat": now_iso(),
+            },
+        )
+        self._log_auth_event(
+            "wallet_challenge_created",
+            userId=challenge_user.get("id"),
+            walletAddress=normalized_wallet,
+            purpose=purpose,
+            chainId=chain_id,
+            challengeId=challenge.get("id"),
+        )
+        return WalletNonceResponse(
+            challengeId=challenge["id"],
+            walletAddress=challenge["walletaddress"],
+            nonce=challenge["nonce"],
+            message=challenge["siwemessage"],
+            expiresAt=challenge["expiresat"],
+            purpose=challenge["purpose"],
+        )
+
+    def _find_challenge_for_verify(self, req: WalletVerifyRequest) -> dict:
+        purpose = self._validate_wallet_purpose(req.purpose)
+        normalized_wallet = self._normalize_wallet(req.walletaddress)
+
+        if req.challengeid:
+            challenge = self.one("wallet_auth_challenges", id=req.challengeid)
+            if self._normalize_wallet(challenge.get("walletaddress")) != normalized_wallet:
+                raise ValueError("walletAddress khong khop voi challenge")
+            if str(challenge.get("purpose") or "").lower() != purpose:
+                raise ValueError("purpose khong khop voi challenge")
+            return challenge
+
+        query = (
+            self.t("wallet_auth_challenges")
+            .select("*")
+            .eq("walletaddress", normalized_wallet)
+            .eq("purpose", purpose)
+            .order("createdat", desc=True)
+            .limit(20)
+            .execute()
+        )
+        nonce = str(req.nonce or "").strip()
+        for challenge in query.data or []:
+            if nonce and challenge.get("nonce") != nonce:
                 continue
             return challenge
         raise ValueError("Khong tim thay challenge hop le")
 
-    def verify_wallet(self, current_user: dict, req: WalletVerifyRequest) -> WalletVerifyResponse:
-        challenge = self._get_active_challenge(current_user["id"], req.walletaddress, req.purpose)
+    def _assert_challenge_active(self, challenge: dict):
+        if challenge.get("usedat"):
+            raise ValueError("Challenge da duoc su dung")
+        expires_at = challenge.get("expiresat")
+        if not expires_at:
+            raise ValueError("Challenge khong hop le")
+        expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        if expires_dt < datetime.now(timezone.utc):
+            raise ValueError("Challenge da het han")
+
+    def verify_wallet(self, current_user: Optional[dict], req: WalletVerifyRequest) -> WalletVerifyResponse:
+        purpose = self._validate_wallet_purpose(req.purpose)
+        challenge = self._find_challenge_for_verify(req)
+        self._assert_challenge_active(challenge)
+
         if challenge.get("siwemessage") != req.message:
             raise ValueError("Message khong khop challenge da tao")
+
         recovered_address = Account.recover_message(encode_defunct(text=req.message), signature=req.signature)
-        if recovered_address.lower() != req.walletaddress.lower():
+        challenge_wallet = self._normalize_wallet(challenge.get("walletaddress"))
+        req_wallet = self._normalize_wallet(req.walletaddress)
+        if self._normalize_wallet(recovered_address) != challenge_wallet or req_wallet != challenge_wallet:
             raise ValueError("Chu ky khong khop voi walletAddress")
 
-        existing_wallet = self.maybe_one("wallets", address=req.walletaddress.lower()) or self.maybe_one("wallets", address=req.walletaddress)
-        if existing_wallet and existing_wallet.get("nguoidungid") not in {None, current_user["id"]}:
-            raise ValueError("Vi nay da lien ket voi tai khoan khac")
+        challenge_user = self.one("users", id=challenge.get("nguoidungid"))
+        self._ensure_user_login_allowed(challenge_user)
 
-        if existing_wallet:
-            wallet = self.update("wallets", "id", existing_wallet["id"], {
-                "nguoidungid": current_user["id"],
-                "status": "active",
-                "wallettype": existing_wallet.get("wallettype") or "user",
-                "syncat": now_iso(),
-            })
-        else:
-            wallet = self.insert("wallets", {
-                "nguoidungid": current_user["id"],
-                "address": req.walletaddress.lower(),
-                "wallettype": "user",
-                "status": "active",
-                "balance": 0,
-                "lockedbalance": 0,
-                "syncat": now_iso(),
-                "createdat": now_iso(),
-            })
+        wallet_payload = None
+        issued = None
+
+        if purpose == "link_wallet":
+            if current_user is None or current_user.get("id") != challenge_user.get("id"):
+                raise HTTPException(status_code=403, detail="Challenge lien ket vi khong thuoc tai khoan dang dang nhap")
+            existing_wallet = self._get_wallet_by_address(req_wallet)
+            if existing_wallet and existing_wallet.get("nguoidungid") not in {None, challenge_user["id"]}:
+                raise ValueError("Vi nay da lien ket voi tai khoan khac")
+            if existing_wallet:
+                wallet_payload = self.update(
+                    "wallets",
+                    "id",
+                    existing_wallet["id"],
+                    {
+                        "nguoidungid": challenge_user["id"],
+                        "address": req_wallet,
+                        "status": "active",
+                        "wallettype": existing_wallet.get("wallettype") or "user",
+                        "syncat": now_iso(),
+                    },
+                )
+            else:
+                wallet_payload = self.insert(
+                    "wallets",
+                    {
+                        "nguoidungid": challenge_user["id"],
+                        "address": req_wallet,
+                        "publickey": None,
+                        "wallettype": "user",
+                        "status": "active",
+                        "balance": 0,
+                        "lockedbalance": 0,
+                        "syncat": now_iso(),
+                        "createdat": now_iso(),
+                    },
+                )
+
+        elif purpose == "login_wallet":
+            linked_wallet = self._get_wallet_by_address(req_wallet)
+            if linked_wallet is None or linked_wallet.get("nguoidungid") != challenge_user.get("id"):
+                raise ValueError("Vi khong con lien ket hop le voi tai khoan")
+            if str(linked_wallet.get("status") or "").lower() != "active":
+                raise ValueError("Vi khong o trang thai hoat dong")
+            self.update("users", "id", challenge_user["id"], {"landangnhapcuoi": now_iso(), "capnhatluc": now_iso()})
+            issued = self._issue_session_for_user(challenge_user)
+            wallet_payload = linked_wallet
+
+        else:  # step_up
+            if current_user is None or current_user.get("id") != challenge_user.get("id"):
+                raise HTTPException(status_code=403, detail="Challenge step-up khong thuoc tai khoan dang dang nhap")
+            linked_wallet = self._get_wallet_by_address(req_wallet)
+            if linked_wallet is None or linked_wallet.get("nguoidungid") != challenge_user.get("id"):
+                raise ValueError("Vi step-up khong hop le")
+            if str(linked_wallet.get("status") or "").lower() != "active":
+                raise ValueError("Vi step-up khong o trang thai active")
+            wallet_payload = linked_wallet
 
         challenge = self.update("wallet_auth_challenges", "id", challenge["id"], {"usedat": now_iso()})
-        self._log_auth_event("wallet_verify_success", userId=current_user.get("id"), walletAddress=wallet.get("address"), purpose=req.purpose)
-        return WalletVerifyResponse(verified=True, wallet=wallet, challenge=challenge)
+        self._log_auth_event(
+            "wallet_verify_success",
+            userId=challenge_user.get("id"),
+            walletAddress=req_wallet,
+            purpose=purpose,
+            challengeId=challenge.get("id"),
+        )
+
+        return WalletVerifyResponse(
+            verified=True,
+            wallet=wallet_payload,
+            challenge=challenge,
+            accessToken=None if issued is None else issued.get("accessToken"),
+            tokenType=None if issued is None else issued.get("tokenType"),
+            expiresIn=None if issued is None else issued.get("expiresIn"),
+            user=None if issued is None else issued.get("user"),
+            session=None if issued is None else issued.get("session"),
+        )
+
+    def verify_step_up_assertion(self, current_user: dict, challenge_id: str, max_age_minutes: int = 15) -> dict:
+        challenge = self.one("wallet_auth_challenges", id=challenge_id)
+        if str(challenge.get("purpose") or "").lower() != "step_up":
+            raise HTTPException(status_code=403, detail="Step-up challenge khong hop le")
+        if challenge.get("nguoidungid") != current_user.get("id"):
+            raise HTTPException(status_code=403, detail="Step-up challenge khong thuoc nguoi dung hien tai")
+        if not challenge.get("usedat"):
+            raise HTTPException(status_code=403, detail="Step-up challenge chua duoc xac thuc")
+        used_at = datetime.fromisoformat(str(challenge.get("usedat")).replace("Z", "+00:00"))
+        if used_at < (datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)):
+            raise HTTPException(status_code=403, detail="Step-up challenge da het hieu luc")
+        return challenge
 
     def unlink_wallet(self, current_user: dict, req: WalletUnlinkRequest) -> WalletUnlinkResponse:
-        wallet = self.maybe_one("wallets", address=req.walletaddress.lower()) or self.maybe_one("wallets", address=req.walletaddress)
+        wallet = self._get_wallet_by_address(req.walletaddress)
         if wallet is None or wallet.get("nguoidungid") != current_user["id"]:
             raise ValueError("Khong tim thay vi thuoc tai khoan hien tai")
         if (wallet.get("wallettype") or "").lower() == "system" or wallet.get("address") == SYSTEM_ESCROW_ADDRESS:
             raise ValueError("Khong duoc go vi he thong")
-        wallet = self.update("wallets", "id", wallet["id"], {
-            "nguoidungid": None,
-            "status": "inactive",
-            "syncat": now_iso(),
-        })
+        wallet = self.update(
+            "wallets",
+            "id",
+            wallet["id"],
+            {
+                "nguoidungid": None,
+                "status": "inactive",
+                "syncat": now_iso(),
+            },
+        )
         self._log_auth_event("wallet_unlink_success", userId=current_user.get("id"), walletAddress=wallet.get("address"))
         return WalletUnlinkResponse(unlinked=True, wallet=wallet)
 
@@ -335,3 +545,4 @@ def extract_bearer_token(authorization: Optional[str] = Header(default=None)) ->
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Authorization header khong hop le")
     return token
+

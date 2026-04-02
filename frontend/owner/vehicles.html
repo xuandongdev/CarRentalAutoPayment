@@ -1,0 +1,60 @@
+﻿<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Xe của chủ xe</title><link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1"></head>
+<body data-page="owner_vehicles"><header><h1>Xe của chủ xe</h1><nav id="topNav"></nav><div id="userMeta"></div></header>
+<main class="owner-workspace">
+  <section class="card owner-page-head">
+    <h2>Xe của tôi</h2>
+    <p class="note">Quản lý danh sách xe, trạng thái vận hành và hành động nhanh.</p>
+  </section>
+
+  <section class="card">
+    <div class="owner-action-bar">
+      <div class="owner-filters">
+        <label>Tìm kiếm xe<input id="ownerVehicleSearch" placeholder="Biển số, hãng xe, dòng xe"></label>
+        <label>Trạng thái
+          <select id="ownerVehicleStatusFilter">
+            <option value="">Tất cả</option>
+            <option value="sanSang">Sẵn sàng</option>
+            <option value="dangCho">Đang chờ</option>
+            <option value="dangChoThue">Đang cho thuê</option>
+            <option value="choDuyet">Chờ duyệt</option>
+            <option value="baoTri">Bảo trì</option>
+            <option value="ngungHoatDong">Ngừng hoạt động</option>
+          </select>
+        </label>
+      </div>
+      <button id="toggleOwnerVehicleFormBtn" type="button">Thêm xe mới</button>
+    </div>
+    <div id="ownerVehiclesTable"></div>
+    <div id="ownerVehiclesEmpty" class="empty-state owner-hide">Chưa có xe nào. Hãy thêm xe đầu tiên của bạn.</div>
+    <div id="ownerVehicleMessage" class="message"></div>
+  </section>
+
+  <section id="ownerVehicleDetailPanel" class="card owner-hide">
+    <h3>Chi tiết xe</h3>
+    <div id="ownerVehicleDetail"></div>
+  </section>
+
+  <section id="ownerVehicleFormPanel" class="card owner-form-panel owner-hide">
+    <div class="owner-form-head">
+      <h3>Thêm xe mới</h3>
+      <button id="closeOwnerVehicleFormBtn" type="button" class="table-action-btn">Đóng</button>
+    </div>
+    <form id="vehicleForm" class="owner-form-grid">
+      <label>Biển số<input id="bienSo" data-required="true"></label>
+      <label>Hãng xe<input id="hangXe" data-required="true"></label>
+      <label>Dòng xe<input id="dongXe" data-required="true"></label>
+      <label>Loại xe<input id="loaiXe" data-required="true"></label>
+      <label>Năm sản xuất<input id="namSanXuat" type="number"></label>
+      <label>Giá theo ngày<input id="giaTheoNgay" type="number" min="10000" step="10000" data-required="true" placeholder="Tối thiểu 10.000, bước 10.000"></label>
+      <label>Giá theo giờ<input id="giaTheoGio" type="number" min="0"></label>
+      <label>Bảo hiểm<input id="baoHiem"></label>
+      <label>Đăng kiểm<input id="dangKiem"></label>
+      <label>Đăng ký xe<input id="dangKyXe"></label>
+      <label>Ngày hết hạn đăng kiểm<input id="ngayHetHanDangKiem" type="date"></label>
+      <label class="owner-span-2">Mô tả<textarea id="moTa"></textarea></label>
+      <button type="submit">Lưu xe</button>
+    </form>
+  </section>
+</main>
+<script src="/frontend/app.js?v=20260330_ux1"></script><script src="/frontend/pages.js?v=20260330_ux1"></script></body></html>

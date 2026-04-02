@@ -1,0 +1,35 @@
+{
+  "blockHeight": 49,
+  "timestamp": "2026-04-02T04:40:05.397087+00:00",
+  "previousHash": "263ef0eac66afb3dc6eccbd45e200d40cc1aa242a369fa0cff60ee82db40777d",
+  "nonce": 0,
+  "merkleRoot": "9ff53e0e927fe24a1015858c1901cfca381fe2b9d301558c4ad078aef469b571",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TX89F7CB1105EC",
+      "txType": "VEHICLE_RETURNED",
+      "dataHash": "cb93054034a59b52f4cc9aa6a51079b35b05e151b3c02274d71da6b16b01ea9f",
+      "fromAddress": "0x5f225d3b39de0a60ff7cc06f1361aa57dcae6c1e",
+      "toAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T04:40:05.280751+00:00",
+      "signature": "12e4112c052db5a564d53e6cb6f755799db687fb8854c4628da6f8030899db55",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "163fcd0f-2599-4b5e-be0e-6d2ed5c4824f",
+        "tienCocId": "1a9ec811-2388-4d12-9632-d3e0aac5d356",
+        "action": "traXe",
+        "evidenceHash": "ee889576a2f30dad85e726654c73cce4c24bdeed4234b38efff19de0626dfb79",
+        "nguoiTraId": "81f32200-4a3f-4d46-a614-7fdfbfbb83c1",
+        "ghiChu": "hư bánh",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 49,
+      "blockHash": "951f7fbcd51caad398d4b784c5eae4288aaa58c0a188fb4e5f056386dd194971",
+      "txIndex": 0
+    }
+  ],
+  "hash": "951f7fbcd51caad398d4b784c5eae4288aaa58c0a188fb4e5f056386dd194971"
+}

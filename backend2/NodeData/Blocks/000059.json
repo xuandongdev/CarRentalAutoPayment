@@ -1,0 +1,35 @@
+{
+  "blockHeight": 59,
+  "timestamp": "2026-04-02T07:17:26.270349+00:00",
+  "previousHash": "90cc575643529b62e1e818952bb9bb179955e43ec99389aa4f9405695aa93d44",
+  "nonce": 0,
+  "merkleRoot": "7e612362d8c5300089f1d839825762cb837c69d20ad6ab7f9483b35c5deb6673",
+  "transactionCount": 1,
+  "transactions": [
+    {
+      "txHash": "TXDE51EFDBB3D8",
+      "txType": "OWNER_HANDOVER_CONFIRMED",
+      "dataHash": "4f77fac3a99c0dceedae92e525b175a0ab6bbda7267b5c83d401877c5a420ebf",
+      "fromAddress": "0x6a358cd67cc4e28df816316df1938b2810f0fca4",
+      "toAddress": "0x5f225d3b39de0a60ff7cc06f1361aa57dcae6c1e",
+      "amount": 0.0,
+      "timestamp": "2026-04-02T07:17:26.114801+00:00",
+      "signature": "013ad280e212c0214f73ea4eb437d586bed167cc5f4a9edee0f2a9ae3aaa166b",
+      "status": "confirmed",
+      "rawData": {
+        "hopDongThueId": "035a6fa8-70e1-4e3f-abec-9b1c17967b52",
+        "tienCocId": "3f04cf7c-2a60-4789-801e-67dbe5a19124",
+        "action": "ownerConfirmHandover",
+        "evidenceHash": "e4b2717828bc5f918883651273d37576956aeb5271c3c3e02fd8bef050b3b9d9",
+        "chuXeId": "f9ffc9f9-4ca9-4dc5-a3b1-b727a53c75f5",
+        "ghiChu": "xe ne may",
+        "evidenceUrls": [],
+        "evidenceMeta": {}
+      },
+      "blockHeight": 59,
+      "blockHash": "7d03002bf4078ef08193e95940cd58234bd9c4ada1f5f465467f53cee27f6f71",
+      "txIndex": 0
+    }
+  ],
+  "hash": "7d03002bf4078ef08193e95940cd58234bd9c4ada1f5f465467f53cee27f6f71"
+}

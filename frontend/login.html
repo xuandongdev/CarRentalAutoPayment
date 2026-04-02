@@ -1,0 +1,56 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập</title>
+  <link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1">
+</head>
+<body data-page="login">
+  <header>
+    <h1>Đăng nhập</h1>
+    <nav id="topNav"></nav>
+    <div id="userMeta"></div>
+  </header>
+  <main>
+    <section class="card auth-card">
+      <div class="auth-tabs" role="tablist" aria-label="Chọn cách đăng nhập">
+        <button type="button" class="auth-tab active" data-auth-tab="account" aria-selected="true">Tài khoản</button>
+        <button type="button" class="auth-tab" data-auth-tab="wallet" aria-selected="false">Ví MetaMask</button>
+      </div>
+
+      <div class="auth-pane active" data-auth-pane="account">
+        <p class="note">Đăng nhập bằng email hoặc số điện thoại để truy cập hệ thống thuê xe.</p>
+        <form id="loginForm">
+          <label>Identifier (email hoặc số điện thoại)
+            <input id="identifier" data-required="true" autocomplete="username">
+          </label>
+          <label>Mật khẩu
+            <input id="password" type="password" data-required="true" autocomplete="current-password">
+          </label>
+          <button id="togglePasswordBtn" type="button" class="btn-link secondary">Hiện/Ẩn mật khẩu</button>
+          <button type="submit">Đăng nhập</button>
+        </form>
+        <p class="note">Chưa có tài khoản? <a href="/register">Đăng ký tại đây</a>.</p>
+        <div id="loginMessage" class="message"></div>
+      </div>
+
+      <div class="auth-pane" data-auth-pane="wallet">
+        <p class="note">
+          Đăng nhập ví dùng chữ ký xác thực (challenge/nonce), không gửi giao dịch on-chain và không yêu cầu private key.
+        </p>
+        <div id="walletConnectedInfo" class="wallet-connect-state">Chưa kết nối ví.</div>
+        <div class="wallet-auth-actions">
+          <button id="walletConnectBtn" type="button">Kết nối MetaMask</button>
+          <button id="walletSignInBtn" type="button" disabled>Ký để đăng nhập</button>
+        </div>
+        <p class="note">Nếu ví chưa liên kết, hãy đăng nhập tài khoản trước rồi liên kết ví trong hồ sơ người dùng.</p>
+        <p class="note"><a href="/">Quay về trang chủ</a></p>
+        <div id="walletLoginMessage" class="message"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/frontend/app.js?v=20260330_ux1"></script>
+  <script src="/frontend/pages.js?v=20260330_ux1"></script>
+</body>
+</html>

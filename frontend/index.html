@@ -3,169 +3,117 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bang Dieu Khien Tong Hop</title>
-  <link rel="stylesheet" href="/frontend/styles.css">
+  <title>Hệ thống Thuê Xe Tự Lái</title>
+  <link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1">
 </head>
-<body>
+<body data-page="landing">
   <header>
-    <h1>Bang Dieu Khien Thu Nghiem Tong Hop</h1>
-    <nav>
-      <a href="/frontend/index.html" data-visible-for="admin,chuxe,khach">Trang Chu</a>
-      <a href="/frontend/owner.html" data-visible-for="admin,chuxe">Chu Xe</a>
-      <a href="/frontend/renter.html" data-visible-for="admin,khach">Khach Thue</a>
-      <a href="/frontend/auth.html" data-visible-for="admin,chuxe,khach,guest">Dang Nhap</a>
-      <a href="/frontend/admin.html" data-visible-for="admin">Quan Tri</a>
-      <a href="/frontend/finance.html" data-visible-for="admin">Tai Chinh</a>
-    </nav>
+    <h1>Thuê xe tự lái minh bạch, bắt đầu trong vài phút</h1>
+    <nav id="topNav"></nav>
+    <div id="userMeta"></div>
   </header>
   <main>
-    <section class="card">
-      <h2>Dia Chi Backend</h2>
-      <label>Dia chi Backend <input id="apiBase" value="http://127.0.0.1:8000"></label>
-      <p class="note">Trang nay gom day du cac nut test cho auth, vehicle, booking, contract, dispute, chain va overview.</p>
+    <section class="card public-hero">
+      <div class="hero-main">
+        <p class="hero-eyebrow">Nền tảng thuê xe tự lái</p>
+        <h2>Đặt xe nhanh, hợp đồng tự động, theo dõi tiền cọc rõ ràng</h2>
+        <p class="hero-subtitle">Dễ bắt đầu cho người mới với quy trình minh bạch từ chọn xe, tạo booking đến trả xe và tất toán.</p>
+        <div class="hero-actions">
+          <a href="/vehicles" class="hero-btn primary">Xem xe công khai</a>
+          <a href="/register" class="hero-btn secondary">Đăng ký</a>
+          <a href="/login" class="hero-link">Đăng nhập</a>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-stat-card">
+          <h3>Phù hợp cho người dùng mới</h3>
+          <p>Không cần hiểu kỹ thuật blockchain, bạn vẫn theo dõi được toàn bộ trạng thái thuê xe và tiền cọc.</p>
+          <ul>
+            <li>Trạng thái xe dễ hiểu</li>
+            <li>Dòng tiền minh bạch theo hợp đồng</li>
+            <li>Luồng tranh chấp có kiểm soát</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
-    <div class="grid">
-      <section class="card" data-visible-for="admin,chuxe,khach">
-        <h3>Tien Ich</h3>
-        <div class="button-row">
-          <button id="loadOverviewBtn">Tai Tong Quan</button>
-          <button id="loadChainBtn">Tai Chuoi</button>
-          <button id="runReconcileBtn">Dong Bo Lai</button>
-        </div>
-      </section>
-
-      <section class="card" data-visible-for="admin,chuxe,khach,guest">
-        <h3>Dang Ky</h3>
-        <label>Ho Ten <input id="registerHoTen"></label>
-        <label>Email <input id="registerEmail"></label>
-        <label>So Dien Thoai <input id="registerSoDienThoai"></label>
-        <label>Password <input id="registerPassword" type="password"></label>
-        <button id="registerBtn">Register</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,chuxe,khach,guest">
-        <h3>Dang Nhap / Tai Khoan / Dang Xuat</h3>
-        <label>Identifier <input id="identifier"></label>
-        <label>Password <input id="password" type="password"></label>
-        <div class="button-row">
-          <button id="loginBtn">Login</button>
-          <button id="meBtn">Get Me</button>
-          <button id="logoutBtn">Logout</button>
-        </div>
-        <button id="linkWalletBtn">Connect / Link MetaMask</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,chuxe">
-        <h3>Them Xe</h3>
-        <label>Email Chu Xe <input id="ownerEmail"></label>
-        <label>Bien So <input id="bienSo"></label>
-        <label>Hang Xe <input id="hangXe"></label>
-        <label>Dong Xe <input id="dongXe"></label>
-        <label>Loai Xe <input id="loaiXe" value="Sedan"></label>
-        <label>Gia Theo Ngay <input id="giaTheoNgay" value="800000"></label>
-        <label>Gia Theo Gio <input id="giaTheoGio" value="120000"></label>
-        <label>Mo Ta <textarea id="moTa"></textarea></label>
-        <button id="addVehicle">Them Xe</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,khach">
-        <h3>Tao Don Dat Xe</h3>
-        <label>Email Khach Thue <input id="renterEmail"></label>
-        <label>Bien So <input id="bookingBienSo"></label>
-        <label>Ngay Bat Dau <input id="ngayBatDau" type="date"></label>
-        <label>Ngay Ket Thuc <input id="ngayKetThuc" type="date"></label>
-        <label>Dia Diem Nhan <input id="diaDiemNhan"></label>
-        <label>Tong Tien Thue <input id="tongTienThue" value="1600000"></label>
-        <button id="createBooking">Tao Don Dat Xe</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,khach">
-        <h3>Tao Hop Dong</h3>
-        <label>Ma Don Dat Xe <input id="bookingId"></label>
-        <label>Tong Tien Coc <input id="tongTienCoc" value="2000000"></label>
-        <button id="createContract">Tao Hop Dong</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,khach">
-        <h3>Khoa Tien Coc</h3>
-        <label>Ma Hop Dong <input id="lockContractId"></label>
-        <button id="lockDeposit">Khoa Tien Coc</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,khach">
-        <h3>Tra Xe</h3>
-        <label>Ma Hop Dong <input id="returnContractId"></label>
-        <label>Ma Nguoi Tra <input id="nguoiTraId"></label>
-        <label>Ghi Chu <textarea id="returnNote">Khach da tra xe</textarea></label>
-        <label>URL Bang Chung <textarea id="returnEvidenceUrls"></textarea></label>
-        <button id="returnVehicle">Tra Xe</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,chuxe">
-        <h3>Tao Khieu Nai Hu Hai</h3>
-        <label>Ma Hop Dong <input id="damageContractId"></label>
-        <label>Ma Chu Xe <input id="ownerId"></label>
-        <label>Ly Do <textarea id="lyDo"></textarea></label>
-        <label>Chi Phi Uoc Tinh <input id="estimatedCost" value="1200000"></label>
-        <label>URL Bang Chung <textarea id="damageEvidenceUrls"></textarea></label>
-        <label>Ghi Chu <textarea id="ghiChu"></textarea></label>
-        <button id="claimDamage">Tao Khieu Nai</button>
-      </section>
-
-      <section class="card" data-visible-for="admin">
-        <h3>Admin Xac Nhan Khong Hu Hai</h3>
-        <label>Ma Tranh Chap <input id="noDamageDisputeId"></label>
-        <label>Ma Admin <input id="noDamageAdminId"></label>
-        <label>Ghi Chu Ket Luan <textarea id="noDamageDecisionNote">Da doi chieu anh giao xe va anh tra xe, khong co hu hai moi</textarea></label>
-        <button id="submitNoDamage">Gui Xac Nhan</button>
-      </section>
-
-      <section class="card" data-visible-for="admin">
-        <h3>Admin Xac Nhan Co Hu Hai</h3>
-        <label>Ma Tranh Chap <input id="damageDisputeId"></label>
-        <label>Ma Admin <input id="damageAdminId"></label>
-        <label>Chi Phi Duoc Duyet <input id="approvedCost" value="1000000"></label>
-        <label>Ghi Chu Ket Luan <textarea id="damageDecisionNote">Xac nhan hu hai thuc te</textarea></label>
-        <button id="submitDamage">Gui Xac Nhan</button>
-      </section>
-
-      <section class="card" data-visible-for="admin,chuxe,khach">
-        <h3>Tat Toan Hop Dong</h3>
-        <label>Ma Hop Dong <input id="settleContractId"></label>
-        <label>Tong Tien Thanh Toan <input id="tongTienThanhToan" value="1500000"></label>
-        <label>Tong Tien Hoan Lai <input id="tongTienHoanLai" value="500000"></label>
-        <button id="settleContract">Tat Toan</button>
-      </section>
-
-      <section class="card" data-visible-for="admin">
-        <h3>Xem Nhanh Tai Chinh</h3>
-        <div class="button-row">
-          <button id="loadWalletsOverviewBtn">Tong Quan Vi</button>
-          <button id="loadFinanceSummaryBtn">Tong Hop Tai Chinh</button>
-        </div>
-        <label>Dia Chi Vi Giao Dich <input id="financeWalletAddress"></label>
-        <label>Loai Giao Dich <input id="financeTxType"></label>
-        <label>Finance Tx Ma Hop Dong <input id="financeContractId"></label>
-        <label>Finance Tx Ma Tranh Chap <input id="financeDisputeId"></label>
-        <button id="loadFinanceTransactionsBtn">Tai Giao Dich Tai Chinh</button>
-        <label>Money Flow Ma Hop Dong <input id="moneyFlowContractId"></label>
-        <button id="loadMoneyFlowBtn">Tai Dong Tien Hop Dong</button>
-      </section>
-    </div>
-
-
-    <section class="card">
-      <h3>Du Lieu Tham Chieu</h3>
-      <p class="note">Dung de copy nhanh id xe, user, booking, contract, dispute vao cac textbox.</p>
-      <pre id="referenceData">Dang tai...</pre>
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Lợi ích của hệ thống</h3>
+        <p>Trải nghiệm thuê xe rõ ràng và đáng tin cậy cho cả người thuê và chủ xe.</p>
+      </div>
+      <div class="benefits-grid">
+        <article class="benefit-card">
+          <h4>Đặt xe dễ dàng</h4>
+          <p>Tìm xe công khai, xem trạng thái và gửi yêu cầu thuê nhanh chóng.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Hợp đồng rõ ràng</h4>
+          <p>Booking được chuyển thành hợp đồng tự động với thông tin minh bạch.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Theo dõi tiền cọc</h4>
+          <p>Khóa cọc, hoàn cọc và tất toán hiển thị rõ theo từng bước xử lý.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Xử lý tranh chấp có kiểm soát</h4>
+          <p>Có quy trình xác nhận và lưu dấu vết để giảm rủi ro vận hành.</p>
+        </article>
+      </div>
     </section>
-    <section class="card">
-      <h3>JSON Log</h3>
-      <pre id="result">Chua co du lieu</pre>
+
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Xe nổi bật</h3>
+        <p>Ưu tiên hiển thị các xe đang sẵn sàng để bạn bắt đầu ngay.</p>
+      </div>
+      <div id="featuredVehicles" class="vehicle-cards"></div>
+      <div class="section-actions">
+        <a class="btn-link secondary" href="/vehicles">Xem tất cả xe công khai</a>
+      </div>
+      <div id="landingMessage" class="message"></div>
+    </section>
+
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Quy trình 4 bước</h3>
+        <p>Chỉ cần làm theo 4 bước để hoàn tất một phiên thuê xe.</p>
+      </div>
+      <div class="steps-grid">
+        <article class="step-card">
+          <span class="step-index">1</span>
+          <h4>Chọn xe</h4>
+          <p>Xem danh sách xe công khai và chọn xe phù hợp nhu cầu.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">2</span>
+          <h4>Gửi đặt thuê</h4>
+          <p>Tạo booking, nhập thời gian thuê và thông tin nhận xe.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">3</span>
+          <h4>Tạo hợp đồng</h4>
+          <p>Hệ thống tạo hợp đồng tự động và cập nhật trạng thái liên tục.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">4</span>
+          <h4>Trả xe và tất toán</h4>
+          <p>Hoàn tất thuê xe, xử lý cọc và tranh chấp nếu phát sinh.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card public-cta">
+      <h3>Sẵn sàng bắt đầu?</h3>
+      <p>Tạo tài khoản để đặt xe ngay hoặc khám phá danh sách xe công khai trước.</p>
+      <div class="cta-row">
+        <a href="/register">Đăng ký</a>
+        <a href="/vehicles" class="secondary">Xem xe công khai</a>
+        <a href="/login" class="inline-link">Đăng nhập nếu đã có tài khoản</a>
+      </div>
     </section>
   </main>
-  <script src="/frontend/app.js"></script>
-  <script src="/frontend/index.js"></script>
+  <script src="/frontend/app.js?v=20260330_ux1"></script>
+  <script src="/frontend/pages.js?v=20260330_ux1"></script>
 </body>
 </html>
