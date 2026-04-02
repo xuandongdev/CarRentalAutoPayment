@@ -48,8 +48,8 @@ function statusBadge(status) {
   return `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
 }
 
-async function requestJson(method, url, body, token = '') {
-  const headers = { 'Content-Type': 'application/json' };
+async function requestJson(method, url, body, token = '', extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(extraHeaders || {}) };
   const finalToken = token || getToken();
   if (finalToken) headers.Authorization = `Bearer ${finalToken}`;
 
@@ -93,6 +93,99 @@ function formatMoney(value) {
   const n = Number(value || 0);
   if (Number.isNaN(n)) return String(value || 0);
   return new Intl.NumberFormat('vi-VN').format(n);
+}
+
+function hasEthereumProvider() {
+  return !!window.ethereum;
+}
+
+async function connectMetaMask() {
+  if (!hasEthereumProvider()) {
+    throw new Error('Không tìm thấy MetaMask. Vui lòng cài extension MetaMask trước.');
+  }
+  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+  const address = String(accounts?.[0] || '').trim();
+  if (!address) throw new Error('Không lấy được địa chỉ ví từ MetaMask.');
+  const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+  const chainId = Number.parseInt(String(chainHex || '0x1'), 16) || 1;
+  return { address, chainId };
+}
+
+async function signWalletMessage(walletAddress, message) {
+  if (!hasEthereumProvider()) throw new Error('Không tìm thấy MetaMask.');
+  return window.ethereum.request({
+    method: 'personal_sign',
+    params: [message, walletAddress],
+  });
+}
+
+async function startWalletChallenge({ walletAddress, chainId, purpose }) {
+  return requestJson('POST', `${getApiBase()}/auth/wallet/challenge`, {
+    walletAddress,
+    chainId,
+    purpose,
+  });
+}
+
+async function verifyWalletChallenge({ challengeId, walletAddress, nonce, message, signature, purpose }) {
+  return requestJson('POST', `${getApiBase()}/auth/wallet/verify`, {
+    challengeId,
+    walletAddress,
+    nonce,
+    message,
+    signature,
+    purpose,
+  });
+}
+
+async function loginWithWallet() {
+  const { address, chainId } = await connectMetaMask();
+  const challenge = await startWalletChallenge({ walletAddress: address, chainId, purpose: 'login_wallet' });
+  const signature = await signWalletMessage(address, challenge.message);
+  return verifyWalletChallenge({
+    challengeId: challenge.id || challenge.challengeId || null,
+    walletAddress: challenge.walletAddress || address,
+    nonce: challenge.nonce,
+    message: challenge.message,
+    signature,
+    purpose: 'login_wallet',
+  });
+}
+
+async function linkWalletForCurrentUser() {
+  const { address, chainId } = await connectMetaMask();
+  const challenge = await requestJson('POST', `${getApiBase()}/wallet/link/challenge`, {
+    walletAddress: address,
+    chainId,
+    purpose: 'link_wallet',
+  });
+  const signature = await signWalletMessage(address, challenge.message);
+  return requestJson('POST', `${getApiBase()}/wallet/link/verify`, {
+    challengeId: challenge.id || challenge.challengeId || null,
+    walletAddress: challenge.walletAddress || address,
+    nonce: challenge.nonce,
+    message: challenge.message,
+    signature,
+    purpose: 'link_wallet',
+  });
+}
+
+async function performStepUpAuth() {
+  const { address, chainId } = await connectMetaMask();
+  const challenge = await requestJson('POST', `${getApiBase()}/auth/wallet/step-up/challenge`, {
+    walletAddress: address,
+    chainId,
+    purpose: 'step_up',
+  });
+  const signature = await signWalletMessage(address, challenge.message);
+  return requestJson('POST', `${getApiBase()}/auth/wallet/step-up/verify`, {
+    challengeId: challenge.id || challenge.challengeId || null,
+    walletAddress: challenge.walletAddress || address,
+    nonce: challenge.nonce,
+    message: challenge.message,
+    signature,
+    purpose: 'step_up',
+  });
 }
 
 async function getSession(forceRedirect = false) {
@@ -154,12 +247,16 @@ function navLinksByRole(role) {
 function bindLogout(anchor) {
   anchor.addEventListener('click', async (e) => {
     e.preventDefault();
-    try {
-      await requestJson('POST', `${getApiBase()}/auth/logout`, {});
-    } catch (_error) {}
-    clearToken();
-    window.location.href = '/login';
+    logoutCurrentSession();
   });
+}
+
+async function logoutCurrentSession() {
+  try {
+    await requestJson('POST', `${getApiBase()}/auth/logout`, {});
+  } catch (_error) {}
+  clearToken();
+  window.location.href = '/login';
 }
 
 function maskCccd(cccd) {
@@ -240,6 +337,185 @@ function ensureProfileRoot() {
   root.id = 'userProfileRoot';
   document.body.appendChild(root);
   return root;
+}
+
+function normalizePathname(pathname = window.location.pathname || '/') {
+  const path = String(pathname || '/').split('?')[0].replace(/\/+$/, '');
+  return path || '/';
+}
+
+function isAdminShellPage(role) {
+  return role === 'admin' && !!document.querySelector('.admin-shell');
+}
+
+function sidebarActive(href) {
+  const current = normalizePathname(window.location.pathname);
+  const target = normalizePathname(href);
+  if (target === '/finance') {
+    return current === '/finance' || current.startsWith('/finance/contracts/') || current === '/admin/chain';
+  }
+  if (target === '/chain') {
+    return current === '/chain' || current === '/blockchain' || current === '/admin/chain';
+  }
+  return current === target;
+}
+
+function adminPageMeta(pathname = window.location.pathname) {
+  const path = normalizePathname(pathname);
+  const map = {
+    '/admin/dashboard': {
+      topbarTitle: 'Dashboard',
+      breadcrumb: 'Admin / Dashboard',
+      pageTitle: 'Bảng điều khiển quản trị',
+      subtitle: 'Theo dõi nhanh vận hành hệ thống thuê xe và thanh toán tự động.',
+    },
+    '/admin/users': {
+      topbarTitle: 'Người dùng',
+      breadcrumb: 'Admin / Người dùng',
+      pageTitle: 'Quản lý người dùng',
+      subtitle: 'Quản lý tài khoản người dùng, vai trò và trạng thái hoạt động.',
+    },
+    '/admin/vehicles': {
+      topbarTitle: 'Xe',
+      breadcrumb: 'Admin / Xe',
+      pageTitle: 'Quản lý xe',
+      subtitle: 'Duyệt trạng thái xe, theo dõi khả dụng và vận hành đội xe.',
+    },
+    '/admin/bookings': {
+      topbarTitle: 'Booking',
+      breadcrumb: 'Admin / Booking',
+      pageTitle: 'Quản lý booking',
+      subtitle: 'Theo dõi yêu cầu đặt xe và trạng thái xác nhận.',
+    },
+    '/admin/contracts': {
+      topbarTitle: 'Hợp đồng',
+      breadcrumb: 'Admin / Hợp đồng',
+      pageTitle: 'Quản lý hợp đồng',
+      subtitle: 'Kiểm soát vòng đời hợp đồng thuê và thanh toán liên quan.',
+    },
+    '/admin/disputes': {
+      topbarTitle: 'Tranh chấp',
+      breadcrumb: 'Admin / Tranh chấp',
+      pageTitle: 'Quản lý tranh chấp',
+      subtitle: 'Xử lý tình huống hư hại, kết luận và cập nhật quyết định.',
+    },
+    '/admin/debug': {
+      topbarTitle: 'Logs',
+      breadcrumb: 'Admin / Logs',
+      pageTitle: 'Logs và debug',
+      subtitle: 'Kiểm tra dữ liệu log nội bộ để hỗ trợ vận hành và điều tra sự cố.',
+    },
+    '/admin/chain': {
+      topbarTitle: 'Tài chính/Chuỗi',
+      breadcrumb: 'Admin / Tài chính / Chuỗi',
+      pageTitle: 'Chuỗi và đồng bộ',
+      subtitle: 'Theo dõi dữ liệu blockchain nội bộ và trạng thái đồng bộ hệ thống.',
+    },
+    '/finance': {
+      topbarTitle: 'Tài chính/Chuỗi',
+      breadcrumb: 'Admin / Tài chính / Chuỗi',
+      pageTitle: 'Tài chính và chuỗi',
+      subtitle: 'Giám sát dòng tiền, giao dịch và cảnh báo vận hành tài chính.',
+    },
+    '/chain': {
+      topbarTitle: 'Tài chính/Chuỗi',
+      breadcrumb: 'Admin / Tài chính / Chuỗi',
+      pageTitle: 'Blockchain explorer nội bộ',
+      subtitle: 'Quan sát dữ liệu chuỗi theo ngữ cảnh vận hành admin.',
+    },
+    '/blockchain': {
+      topbarTitle: 'Tài chính/Chuỗi',
+      breadcrumb: 'Admin / Tài chính / Chuỗi',
+      pageTitle: 'Blockchain explorer nội bộ',
+      subtitle: 'Quan sát dữ liệu chuỗi theo ngữ cảnh vận hành admin.',
+    },
+  };
+  if (path.startsWith('/finance/contracts/')) return map['/finance'];
+  return map[path] || {
+    topbarTitle: 'Admin',
+    breadcrumb: 'Admin',
+    pageTitle: 'Admin workspace',
+    subtitle: 'Thao tác quản trị theo module.',
+  };
+}
+
+function decorateAdminTopbar(meta) {
+  const topbar = document.querySelector('.admin-topbar');
+  if (!topbar) return;
+  const heading = topbar.querySelector('h1');
+  if (heading) heading.textContent = meta.topbarTitle;
+  let breadcrumb = topbar.querySelector('.topbar-breadcrumb');
+  if (!breadcrumb) {
+    breadcrumb = document.createElement('p');
+    breadcrumb.className = 'topbar-breadcrumb';
+    topbar.insertBefore(breadcrumb, heading || topbar.firstChild);
+  }
+  breadcrumb.textContent = meta.breadcrumb;
+}
+
+function ensureAdminPageHeader(meta) {
+  const content = document.querySelector('.admin-content');
+  if (!content) return;
+  let header = content.querySelector('.admin-page-header');
+  if (!header) {
+    header = document.createElement('section');
+    header.className = 'admin-page-header';
+    header.innerHTML = '<h2 id="pageHeaderTitle"></h2><p id="pageHeaderSubtitle"></p>';
+    content.prepend(header);
+  }
+  const title = header.querySelector('#pageHeaderTitle');
+  const subtitle = header.querySelector('#pageHeaderSubtitle');
+  if (title) title.textContent = meta.pageTitle;
+  if (subtitle) subtitle.textContent = meta.subtitle;
+}
+
+function initInspectorToggle() {
+  const shell = document.querySelector('.admin-shell');
+  const panel = document.querySelector('.inspector-panel');
+  if (!shell || !panel) return;
+
+  let header = panel.querySelector('.inspector-header');
+  if (!header) {
+    const title = panel.querySelector('#inspectorTitle');
+    if (!title) return;
+    header = document.createElement('div');
+    header.className = 'inspector-header';
+    panel.insertBefore(header, title);
+    header.appendChild(title);
+  }
+
+  let toggle = panel.querySelector('#inspectorToggleBtn');
+  if (!toggle) {
+    toggle = document.createElement('button');
+    toggle.id = 'inspectorToggleBtn';
+    toggle.type = 'button';
+    toggle.className = 'inspector-toggle-btn';
+    header.appendChild(toggle);
+  }
+
+  let hint = panel.querySelector('.inspector-hint');
+  if (!hint) {
+    hint = document.createElement('p');
+    hint.className = 'inspector-hint';
+    hint.textContent = 'Panel phụ trợ để xem JSON raw, metadata và log theo bản ghi đang chọn.';
+    header.insertAdjacentElement('afterend', hint);
+  }
+
+  const updateLabel = () => {
+    const collapsed = shell.classList.contains('inspector-collapsed');
+    toggle.textContent = collapsed ? 'Mở' : 'Thu gọn';
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  };
+
+  if (!toggle.dataset.bound) {
+    toggle.addEventListener('click', () => {
+      shell.classList.toggle('inspector-collapsed');
+      updateLabel();
+    });
+    toggle.dataset.bound = '1';
+  }
+
+  updateLabel();
 }
 
 function closeProfileModal() {
@@ -353,6 +629,14 @@ function openProfileModal(session) {
                 </div>
               `
             }
+            <div class="wallet-inline-actions">
+              <button type="button" class="btn-link secondary" id="linkWalletBtn">Liên kết ví MetaMask</button>
+              ${
+                walletAddress
+                  ? '<button type="button" class="btn-link danger" id="unlinkWalletBtn">Gỡ liên kết ví hiện tại</button>'
+                  : ''
+              }
+            </div>
           </section>
         </div>
         <div class="profile-footer">
@@ -385,11 +669,43 @@ function openProfileModal(session) {
       toast('Không thể copy địa chỉ ví trên trình duyệt này.', 'error');
     }
   });
+  document.getElementById('linkWalletBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('linkWalletBtn');
+    try {
+      setLoading(btn, true);
+      await linkWalletForCurrentUser();
+      toast('Liên kết ví thành công.', 'success');
+      closeProfileModal();
+      const session = await getSession(false);
+      buildNav(normalizeRole(session?.user?.vaiTro) || 'guest', session);
+    } catch (error) {
+      toast(error?.message || 'Liên kết ví thất bại.', 'error');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+  document.getElementById('unlinkWalletBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('unlinkWalletBtn');
+    try {
+      setLoading(btn, true);
+      await requestJson('POST', `${getApiBase()}/auth/wallet/unlink`, { walletAddress });
+      toast('Đã gỡ liên kết ví.', 'success');
+      closeProfileModal();
+      const session = await getSession(false);
+      buildNav(normalizeRole(session?.user?.vaiTro) || 'guest', session);
+    } catch (error) {
+      toast(error?.message || 'Không thể gỡ liên kết ví.', 'error');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
 }
 
 function buildNav(role, session = null) {
+  const adminShell = isAdminShellPage(role);
+  const meta = adminShell ? adminPageMeta() : null;
   const nav = document.getElementById('topNav');
-  if (nav) {
+  if (nav && !adminShell) {
     nav.innerHTML = '';
     navLinksByRole(role).forEach((item) => {
       const a = document.createElement('a');
@@ -398,13 +714,15 @@ function buildNav(role, session = null) {
       if (item.href === '#logout') bindLogout(a);
       nav.appendChild(a);
     });
+  } else if (nav && adminShell) {
+    nav.remove();
   }
 
   const sideNav = document.getElementById('sideNav');
   if (sideNav) {
     const items = navLinksByRole(role)
       .filter((item) => item.href.startsWith('/'))
-      .map((item) => `<a href="${item.href}">${escapeHtml(item.text)}</a>`)
+      .map((item) => `<a href="${item.href}" class="${sidebarActive(item.href) ? 'active' : ''}">${escapeHtml(item.text)}</a>`)
       .join('');
     sideNav.innerHTML = `<div class="side-title">Điều hướng</div>${items}`;
   }
@@ -412,17 +730,27 @@ function buildNav(role, session = null) {
   const userMeta = document.getElementById('userMeta');
   if (userMeta && session?.user) {
     const user = session.user;
+    const ownerMode = role === 'chuxe';
     const roleLabel = normalizeRole(user.vaiTro) || 'guest';
     const wallets = Array.isArray(session.wallets) ? session.wallets : [];
     const primaryWallet = pickPrimaryWallet(wallets);
+    userMeta.classList.toggle('user-meta-owner', ownerMode);
     userMeta.innerHTML = `
       <span>${escapeHtml(user.hoTen || 'Người dùng')}</span>
       <span class="badge neutral">${escapeHtml(roleLabel)}</span>
       <span class="badge ${user.trangThai === 'hoatDong' ? 'ok' : 'danger'}">${escapeHtml(user.trangThai || '')}</span>
       <span class="badge neutral">Ví: ${escapeHtml(formatMoney(primaryWallet?.balance || 0))}</span>
-      <button type="button" class="btn-link secondary profile-btn" id="openUserProfileBtn">Thông tin người dùng</button>
+      <button type="button" class="btn-link secondary profile-btn ${ownerMode ? 'compact' : ''}" id="openUserProfileBtn">${ownerMode ? 'Hồ sơ' : 'Thông tin người dùng'}</button>
+      ${adminShell ? '<button type="button" class="btn-link danger profile-btn" id="topbarLogoutBtn">Đăng xuất</button>' : ''}
     `;
     document.getElementById('openUserProfileBtn')?.addEventListener('click', () => openProfileModal(session));
+    document.getElementById('topbarLogoutBtn')?.addEventListener('click', () => logoutCurrentSession());
+  }
+
+  if (adminShell && meta) {
+    decorateAdminTopbar(meta);
+    ensureAdminPageHeader(meta);
+    initInspectorToggle();
   }
 }
 
@@ -566,4 +894,12 @@ window.App = {
   setRequiredMarkers,
   setLoading,
   toast,
+  hasEthereumProvider,
+  connectMetaMask,
+  signWalletMessage,
+  startWalletChallenge,
+  verifyWalletChallenge,
+  loginWithWallet,
+  linkWalletForCurrentUser,
+  performStepUpAuth,
 };

@@ -75,6 +75,30 @@ def optional_current_user(authorization: Optional[str] = Header(default=None)) -
         return None
 
 
+def _optional_user_payload(current_user: Optional[dict]) -> Optional[dict]:
+    if not current_user:
+        return None
+    return current_user.get("user")
+
+
+def _require_recent_step_up(
+    current_user: dict = Depends(require_active_user),
+    step_up_challenge_id: Optional[str] = Header(default=None, alias="X-Step-Up-Challenge-Id"),
+) -> dict:
+    if not step_up_challenge_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Thieu xac thuc step-up. Vui long ky vi de xac nhan thao tac blockchain nhay cam.",
+        )
+    try:
+        require_auth_service().verify_step_up_assertion(current_user["user"], step_up_challenge_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    return current_user
+
+
 def _user_role(current_user: dict) -> str:
     user = current_user["user"]
     return str(user.get("vaitro") or user.get("vaiTro") or "").strip().lower()
@@ -402,10 +426,20 @@ def auth_me(token: str = Depends(extract_bearer_token)):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/auth/wallet/nonce")
-def auth_wallet_nonce(req: WalletNonceRequest, current_user: dict = Depends(require_active_user)):
+@app.post("/auth/wallet/challenge")
+def auth_wallet_challenge(req: WalletNonceRequest, current_user: Optional[dict] = Depends(optional_current_user)):
     try:
-        return require_auth_service().create_wallet_nonce(current_user["user"], req)
+        return require_auth_service().create_wallet_nonce(_optional_user_payload(current_user), req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/nonce")
+def auth_wallet_nonce(req: WalletNonceRequest, current_user: Optional[dict] = Depends(optional_current_user)):
+    try:
+        return require_auth_service().create_wallet_nonce(_optional_user_payload(current_user), req)
     except HTTPException:
         raise
     except Exception as exc:
@@ -413,8 +447,52 @@ def auth_wallet_nonce(req: WalletNonceRequest, current_user: dict = Depends(requ
 
 
 @app.post("/auth/wallet/verify")
-def auth_wallet_verify(req: WalletVerifyRequest, current_user: dict = Depends(require_active_user)):
+def auth_wallet_verify(req: WalletVerifyRequest, current_user: Optional[dict] = Depends(optional_current_user)):
     try:
+        return require_auth_service().verify_wallet(_optional_user_payload(current_user), req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/wallet/link/challenge")
+def wallet_link_challenge(req: WalletNonceRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        req.purpose = "link_wallet"
+        return require_auth_service().create_wallet_nonce(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/wallet/link/verify")
+def wallet_link_verify(req: WalletVerifyRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        req.purpose = "link_wallet"
+        return require_auth_service().verify_wallet(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/step-up/challenge")
+def wallet_step_up_challenge(req: WalletNonceRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        req.purpose = "step_up"
+        return require_auth_service().create_wallet_nonce(current_user["user"], req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/wallet/step-up/verify")
+def wallet_step_up_verify(req: WalletVerifyRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        req.purpose = "step_up"
         return require_auth_service().verify_wallet(current_user["user"], req)
     except HTTPException:
         raise
@@ -599,7 +677,7 @@ def api_owner_contracts(current_user: dict = Depends(require_active_user)):
 
 
 @app.post("/api/contracts/{contract_id}/lock-deposit")
-def api_lock_deposit(contract_id: str, current_user: dict = Depends(require_active_user)):
+def api_lock_deposit(contract_id: str, current_user: dict = Depends(_require_recent_step_up)):
     try:
         contract = require_service().one("contracts", id=contract_id)
         _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc khoa coc")
@@ -611,7 +689,7 @@ def api_lock_deposit(contract_id: str, current_user: dict = Depends(require_acti
 
 
 @app.post("/api/contracts/{contract_id}/return-vehicle")
-def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user: dict = Depends(require_active_user)):
+def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
         contract = require_service().one("contracts", id=contract_id)
         _require_same_user_or_admin(current_user, contract.get("nguoithueid"), "Chi nguoi thue hoac admin moi duoc tra xe")
@@ -623,7 +701,7 @@ def api_return_vehicle(contract_id: str, req: ReturnVehicleRequest, current_user
 
 
 @app.post("/api/contracts/{contract_id}/damage-claim")
-def api_damage_claim(contract_id: str, req: CreateDamageClaimRequest, current_user: dict = Depends(require_active_user)):
+def api_damage_claim(contract_id: str, req: CreateDamageClaimRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
         _require_roles(current_user, "chuxe", "admin")
         contract = require_service().one("contracts", id=contract_id)
@@ -654,8 +732,9 @@ def api_renter_deposits(current_user: dict = Depends(require_active_user)):
 
 
 @app.post("/api/disputes/{dispute_id}/admin-confirm-no-damage")
-def api_admin_confirm_no_damage(dispute_id: str, req: AdminConfirmNoDamageRequest, current_user: dict = Depends(_require_admin)):
+def api_admin_confirm_no_damage(dispute_id: str, req: AdminConfirmNoDamageRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
+        _require_roles(current_user, "admin")
         return require_service().admin_confirm_no_damage(dispute_id, current_user["user"]["id"], req)
     except HTTPException:
         raise
@@ -664,8 +743,9 @@ def api_admin_confirm_no_damage(dispute_id: str, req: AdminConfirmNoDamageReques
 
 
 @app.post("/api/disputes/{dispute_id}/admin-confirm-damage")
-def api_admin_confirm_damage(dispute_id: str, req: AdminConfirmDamageRequest, current_user: dict = Depends(_require_admin)):
+def api_admin_confirm_damage(dispute_id: str, req: AdminConfirmDamageRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
+        _require_roles(current_user, "admin")
         return require_service().admin_confirm_damage(dispute_id, current_user["user"]["id"], req)
     except HTTPException:
         raise
@@ -674,7 +754,7 @@ def api_admin_confirm_damage(dispute_id: str, req: AdminConfirmDamageRequest, cu
 
 
 @app.post("/api/contracts/{contract_id}/settle")
-def api_settle_contract(contract_id: str, req: SettleContractRequest, current_user: dict = Depends(require_active_user)):
+def api_settle_contract(contract_id: str, req: SettleContractRequest, current_user: dict = Depends(_require_recent_step_up)):
     try:
         contract = require_service().one("contracts", id=contract_id)
         renter_id = contract.get("nguoithueid")

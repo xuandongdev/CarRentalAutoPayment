@@ -8,36 +8,109 @@
 </head>
 <body data-page="landing">
   <header>
-    <h1>Hệ thống thuê xe tự lái và thanh toán tự động</h1>
+    <h1>Thuê xe tự lái minh bạch, bắt đầu trong vài phút</h1>
     <nav id="topNav"></nav>
     <div id="userMeta"></div>
   </header>
   <main>
-    <section class="card hero">
-      <div>
-        <h2>Nền tảng thuê xe theo vai trò rõ ràng</h2>
-        <p class="note">Đăng ký tài khoản, chọn xe, tạo booking, theo dõi hợp đồng và tiền cọc minh bạch theo luồng nghiệp vụ.</p>
-        <div class="cta-row">
-          <a href="/vehicles">Xem xe công khai</a>
-          <a href="/login">Đăng nhập</a>
-          <a href="/register">Đăng ký</a>
+    <section class="card public-hero">
+      <div class="hero-main">
+        <p class="hero-eyebrow">Nền tảng thuê xe tự lái</p>
+        <h2>Đặt xe nhanh, hợp đồng tự động, theo dõi tiền cọc rõ ràng</h2>
+        <p class="hero-subtitle">Dễ bắt đầu cho người mới với quy trình minh bạch từ chọn xe, tạo booking đến trả xe và tất toán.</p>
+        <div class="hero-actions">
+          <a href="/vehicles" class="hero-btn primary">Xem xe công khai</a>
+          <a href="/register" class="hero-btn secondary">Đăng ký</a>
+          <a href="/login" class="hero-link">Đăng nhập</a>
         </div>
       </div>
-      <div class="card">
-        <h3>Quy trình 4 bước</h3>
-        <ol>
-          <li>Chọn xe và gửi đăng ký thuê.</li>
-          <li>Xác nhận booking và tạo hợp đồng.</li>
-          <li>Khóa cọc, bắt đầu thuê xe.</li>
-          <li>Trả xe, tất toán hoặc xử lý tranh chấp.</li>
-        </ol>
+      <div class="hero-side">
+        <div class="hero-stat-card">
+          <h3>Phù hợp cho người dùng mới</h3>
+          <p>Không cần hiểu kỹ thuật blockchain, bạn vẫn theo dõi được toàn bộ trạng thái thuê xe và tiền cọc.</p>
+          <ul>
+            <li>Trạng thái xe dễ hiểu</li>
+            <li>Dòng tiền minh bạch theo hợp đồng</li>
+            <li>Luồng tranh chấp có kiểm soát</li>
+          </ul>
+        </div>
       </div>
     </section>
 
-    <section class="card">
-      <h3>Xe nổi bật</h3>
-      <div id="featuredVehicles"></div>
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Lợi ích của hệ thống</h3>
+        <p>Trải nghiệm thuê xe rõ ràng và đáng tin cậy cho cả người thuê và chủ xe.</p>
+      </div>
+      <div class="benefits-grid">
+        <article class="benefit-card">
+          <h4>Đặt xe dễ dàng</h4>
+          <p>Tìm xe công khai, xem trạng thái và gửi yêu cầu thuê nhanh chóng.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Hợp đồng rõ ràng</h4>
+          <p>Booking được chuyển thành hợp đồng tự động với thông tin minh bạch.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Theo dõi tiền cọc</h4>
+          <p>Khóa cọc, hoàn cọc và tất toán hiển thị rõ theo từng bước xử lý.</p>
+        </article>
+        <article class="benefit-card">
+          <h4>Xử lý tranh chấp có kiểm soát</h4>
+          <p>Có quy trình xác nhận và lưu dấu vết để giảm rủi ro vận hành.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Xe nổi bật</h3>
+        <p>Ưu tiên hiển thị các xe đang sẵn sàng để bạn bắt đầu ngay.</p>
+      </div>
+      <div id="featuredVehicles" class="vehicle-cards"></div>
+      <div class="section-actions">
+        <a class="btn-link secondary" href="/vehicles">Xem tất cả xe công khai</a>
+      </div>
       <div id="landingMessage" class="message"></div>
+    </section>
+
+    <section class="card public-section">
+      <div class="section-head">
+        <h3>Quy trình 4 bước</h3>
+        <p>Chỉ cần làm theo 4 bước để hoàn tất một phiên thuê xe.</p>
+      </div>
+      <div class="steps-grid">
+        <article class="step-card">
+          <span class="step-index">1</span>
+          <h4>Chọn xe</h4>
+          <p>Xem danh sách xe công khai và chọn xe phù hợp nhu cầu.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">2</span>
+          <h4>Gửi đặt thuê</h4>
+          <p>Tạo booking, nhập thời gian thuê và thông tin nhận xe.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">3</span>
+          <h4>Tạo hợp đồng</h4>
+          <p>Hệ thống tạo hợp đồng tự động và cập nhật trạng thái liên tục.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-index">4</span>
+          <h4>Trả xe và tất toán</h4>
+          <p>Hoàn tất thuê xe, xử lý cọc và tranh chấp nếu phát sinh.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card public-cta">
+      <h3>Sẵn sàng bắt đầu?</h3>
+      <p>Tạo tài khoản để đặt xe ngay hoặc khám phá danh sách xe công khai trước.</p>
+      <div class="cta-row">
+        <a href="/register">Đăng ký</a>
+        <a href="/vehicles" class="secondary">Xem xe công khai</a>
+        <a href="/login" class="inline-link">Đăng nhập nếu đã có tài khoản</a>
+      </div>
     </section>
   </main>
   <script src="/frontend/app.js?v=20260330_ux1"></script>

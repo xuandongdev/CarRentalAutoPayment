@@ -91,7 +91,15 @@ function disputeDecisionModal({ row, mode }) {
     });
   });
 }
+
+function setInspectorEmpty(message = 'Chọn một bản ghi để xem JSON và metadata.') {
+  if ($('inspectorTitle')) $('inspectorTitle').textContent = 'JSON Inspector';
+  if ($('inspectorTabs')) $('inspectorTabs').innerHTML = '';
+  if ($('inspectorBody')) $('inspectorBody').innerHTML = `<div class="empty-state inspector-empty">${App.escapeHtml(message)}</div>`;
+}
+
 function setInspector(title, data, events = [], tx = []) {
+  if (!data) return setInspectorEmpty();
   if ($('inspectorTitle')) $('inspectorTitle').textContent = title || 'JSON Inspector';
   if ($('inspectorTabs')) {
     $('inspectorTabs').innerHTML = '<button class="tab-btn active" data-t="raw">Raw JSON</button><button class="tab-btn" data-t="events">Events</button><button class="tab-btn" data-t="tx">Transactions</button>';
@@ -121,18 +129,78 @@ async function initLanding() {
   await App.guardPage();
   try {
     const data = await App.requestJson('GET', `${App.getApiBase()}/api/vehicles/public`, null, '');
-    App.renderTable('featuredVehicles', arr(data.items), [
-      { key: 'bienso', label: 'Biển số' },
-      { key: 'hangxe', label: 'Hãng xe' },
-      { key: 'dongxe', label: 'Dòng xe' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
-      { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
-    ]);
+    const all = arr(data.items);
+    const ready = all.filter((r) => vehicleCanBook(r));
+    const sorted = [...ready, ...all.filter((r) => !vehicleCanBook(r))];
+    const path = String(window.location.pathname || '/').split('?')[0];
+    const isHome = path === '/' || path === '/home' || path === '/frontend/index.html';
+    const prioritized = isHome ? sorted.slice(0, 6) : sorted;
+    const root = $('featuredVehicles');
+    if (root) {
+      if (!prioritized.length) {
+        root.innerHTML = '<div class="empty-state">Hiện chưa có xe công khai nổi bật. Vui lòng quay lại sau.</div>';
+      } else {
+        root.innerHTML = prioritized.map((row) => {
+          const brand = App.escapeHtml(gv(row, 'hangxe') || 'Chưa cập nhật');
+          const model = App.escapeHtml(gv(row, 'dongxe') || 'Chưa cập nhật');
+          const plate = App.escapeHtml(gv(row, 'bienso') || gv(row, 'id') || 'Chưa cập nhật');
+          const description = App.escapeHtml(gv(row, 'mota') || `${gv(row, 'hangxe') || 'Xe'} ${gv(row, 'dongxe') || ''}`.trim());
+          const statusHtml = App.statusBadge(vehicleDisplayStatus(row) || 'Chưa cập nhật');
+          const price = App.escapeHtml(App.formatMoney(gv(row, 'giatheongay') || 0));
+          const imageUrl = gv(row, 'image', 'imageurl', 'thumbnail', 'photo', 'anhxe');
+          const imageHtml = imageUrl
+            ? `<img src="${App.escapeHtml(String(imageUrl))}" alt="${brand} ${model}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;vehicle-image-fallback&quot;>Không có ảnh</div>';">`
+            : '<div class="vehicle-image-fallback">Không có ảnh</div>';
+          return `
+            <article class="vehicle-card">
+              <div class="vehicle-image">${imageHtml}</div>
+              <div class="vehicle-card-body">
+                <div class="vehicle-top-row">
+                  <h4>${brand} ${model}</h4>
+                  ${statusHtml}
+                </div>
+                <p class="vehicle-ident">Biển số: <strong>${plate}</strong></p>
+                <p class="vehicle-desc">${description}</p>
+                <div class="vehicle-bottom-row">
+                  <div class="vehicle-price">${price} / ngày</div>
+                  <a class="vehicle-link" href="/vehicles">Xem công khai</a>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+    }
   } catch (e) { App.showMessage('landingMessage', e.message, 'error'); }
+}
+
+async function requireStepUpChallengeHeader() {
+  const verified = await App.performStepUpAuth();
+  const challengeId = verified?.challenge?.id || verified?.challengeId;
+  if (!challengeId) throw new Error('Không lấy được step-up challenge id sau khi xác thực ví.');
+  return { 'X-Step-Up-Challenge-Id': challengeId };
 }
 
 async function initLogin() {
   await App.guardPage({ guestOnly: true });
+  const tabs = Array.from(document.querySelectorAll('[data-auth-tab]'));
+  const panes = Array.from(document.querySelectorAll('[data-auth-pane]'));
+  const switchTab = (target) => {
+    tabs.forEach((tab) => {
+      const active = tab.getAttribute('data-auth-tab') === target;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    panes.forEach((pane) => pane.classList.toggle('active', pane.getAttribute('data-auth-pane') === target));
+  };
+  tabs.forEach((tab) => tab.addEventListener('click', () => switchTab(tab.getAttribute('data-auth-tab'))));
+
+  const passwordInput = $('password');
+  $('togglePasswordBtn')?.addEventListener('click', () => {
+    if (!passwordInput) return;
+    passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+  });
+
   const form = $('loginForm');
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -146,6 +214,67 @@ async function initLogin() {
       App.setToken(data.accessToken);
       App.redirectByRole(data?.user?.vaiTro);
     } catch (e2) { App.showMessage('loginMessage', e2.message, 'error'); } finally { App.setLoading(btn, false); }
+  });
+
+  let connectedWallet = null;
+  const setWalletState = (text) => {
+    const box = $('walletConnectedInfo');
+    if (box) box.textContent = text;
+  };
+  if (!App.hasEthereumProvider()) {
+    setWalletState('Không phát hiện MetaMask trên trình duyệt này.');
+    App.showMessage('walletLoginMessage', 'Bạn cần cài MetaMask để dùng đăng nhập bằng ví.', 'error');
+  }
+  $('walletConnectBtn')?.addEventListener('click', async () => {
+    const btn = $('walletConnectBtn');
+    try {
+      App.setLoading(btn, true);
+      const { address, chainId } = await App.connectMetaMask();
+      connectedWallet = { address, chainId };
+      setWalletState(`Đã kết nối: ${address} | chainId: ${chainId}`);
+      $('walletSignInBtn').disabled = false;
+      App.showMessage('walletLoginMessage', 'Đã kết nối ví thành công. Bấm "Ký để đăng nhập".', 'success');
+    } catch (error) {
+      connectedWallet = null;
+      $('walletSignInBtn').disabled = true;
+      setWalletState('Chưa kết nối ví.');
+      App.showMessage('walletLoginMessage', error.message, 'error');
+    } finally {
+      App.setLoading(btn, false);
+    }
+  });
+  $('walletSignInBtn')?.addEventListener('click', async () => {
+    const btn = $('walletSignInBtn');
+    try {
+      if (!connectedWallet) throw new Error('Vui lòng kết nối MetaMask trước khi ký đăng nhập.');
+      App.setLoading(btn, true);
+      const challenge = await App.startWalletChallenge({
+        walletAddress: connectedWallet.address,
+        chainId: connectedWallet.chainId,
+        purpose: 'login_wallet',
+      });
+      const signature = await App.signWalletMessage(connectedWallet.address, challenge.message);
+      const verified = await App.verifyWalletChallenge({
+        challengeId: challenge.id || challenge.challengeId || null,
+        walletAddress: connectedWallet.address,
+        nonce: challenge.nonce,
+        message: challenge.message,
+        signature,
+        purpose: 'login_wallet',
+      });
+      if (!verified?.accessToken) throw new Error('Đăng nhập ví thất bại, không nhận được session.');
+      App.setToken(verified.accessToken);
+      App.redirectByRole(verified?.user?.vaiTro);
+    } catch (error) {
+      const message = String(error?.message || 'Đăng nhập ví thất bại.');
+      if (message.toLowerCase().includes('lien ket')) {
+        App.showMessage('walletLoginMessage', `${message} Hãy đăng nhập tài khoản để liên kết ví trước.`, 'error');
+      } else {
+        App.showMessage('walletLoginMessage', message, 'error');
+      }
+    } finally {
+      App.setLoading(btn, false);
+    }
   });
 }
 
@@ -323,19 +452,21 @@ async function initAdminDisputes() {
   const applyNoDamage = async (row) => {
     const data = await disputeDecisionModal({ row, mode: 'no-damage' });
     if (!data) return;
+    const stepUpHeaders = await requireStepUpChallengeHeader();
     await App.requestJson('POST', `${App.getApiBase()}/api/disputes/${gv(row, 'id')}/admin-confirm-no-damage`, {
       decisionNote: data.decisionNote,
-    });
+    }, '', stepUpHeaders);
     App.showMessage('adminListMessage', `Đã xử lý tranh chấp ${gv(row, 'id')} (không hư hại).`, 'success');
     await initAdminDisputes();
   };
   const applyDamage = async (row) => {
     const data = await disputeDecisionModal({ row, mode: 'damage' });
     if (!data) return;
+    const stepUpHeaders = await requireStepUpChallengeHeader();
     await App.requestJson('POST', `${App.getApiBase()}/api/disputes/${gv(row, 'id')}/admin-confirm-damage`, {
       approvedCost: data.approvedCost,
       decisionNote: data.decisionNote,
-    });
+    }, '', stepUpHeaders);
     App.showMessage('adminListMessage', `Đã xử lý tranh chấp ${gv(row, 'id')} (có hư hại).`, 'success');
     await initAdminDisputes();
   };
@@ -416,25 +547,148 @@ async function initAdminDisputes() {
   }
 }
 
+const OWNER_ACTIVE_CONTRACT_STATUSES = new Set(['dangThue', 'choKiemTraTraXe', 'dangTranhChap']);
+const OWNER_OPEN_DISPUTE_STATUSES = new Set(['moiTao', 'choAdminXacMinh', 'dangMo', 'dangXuLy']);
+
+function ownerShortId(value, size = 6) {
+  const text = String(value || '').trim();
+  if (!text) return '---';
+  return text.length <= size ? text : text.slice(-size).toUpperCase();
+}
+
+function ownerContractCode(value) {
+  return `HD-${ownerShortId(value, 8)}`;
+}
+
+function ownerCustomerCode(value) {
+  return `KH-${ownerShortId(value, 6)}`;
+}
+
+function ownerFriendlyError(error, fallback = 'Không thể xử lý yêu cầu lúc này, vui lòng thử lại.') {
+  const message = String(error?.message || '').trim();
+  if (!message) return fallback;
+  const lowered = message.toLowerCase();
+  const technical = ['winerror', 'socket', 'econn', 'timed out', 'network', 'fetch failed', 'connection', 'traceback', '[errno'];
+  if (technical.some((x) => lowered.includes(x))) return fallback;
+  if (message.length > 180) return fallback;
+  return message;
+}
+
+function ownerShowError(targetId, error, fallback) {
+  console.error(error);
+  App.showMessage(targetId, ownerFriendlyError(error, fallback), 'error');
+}
+
+function ownerTogglePanel(panelId, show) {
+  const el = $(panelId);
+  if (!el) return;
+  el.classList.toggle('owner-hide', !show);
+}
+
+function ownerVehicleLabel(row) {
+  const plate = gv(row, 'bienso') || ownerShortId(gv(row, 'id'));
+  const brand = gv(row, 'hangxe') || 'Xe';
+  const model = gv(row, 'dongxe') || '';
+  return `${plate} - ${brand} ${model}`.trim();
+}
+
+function ownerDetailHtml(row) {
+  if (!row) return '<div class="empty-state">Chọn một bản ghi để xem chi tiết.</div>';
+  const entries = Object.entries(row).map(([k, v]) => {
+    const display = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
+    return `<div class="kv"><span>${App.escapeHtml(k)}</span><strong class="text-break">${App.escapeHtml(display)}</strong></div>`;
+  }).join('');
+  return `<div class="detail-grid">${entries}</div>`;
+}
+
+async function ownerCopy(text, success = 'Đã sao chép') {
+  try {
+    await navigator.clipboard.writeText(String(text || ''));
+    App.toast(success, 'success');
+  } catch {
+    App.toast('Không thể sao chép trên trình duyệt này.', 'error');
+  }
+}
+
+function ownerRenderQueue(targetId, items) {
+  const root = $(targetId);
+  if (!root) return;
+  root.innerHTML = (items || []).map((item) => `
+    <div class="queue-block">
+      <h4>${App.escapeHtml(item.label)}</h4>
+      <div class="queue-count">${App.escapeHtml(String(item.value ?? 0))}</div>
+      ${item.hint ? `<p class="note">${App.escapeHtml(item.hint)}</p>` : ''}
+    </div>
+  `).join('');
+}
+
 async function initOwnerDashboard() {
   const session = await App.guardPage({ roles: ['chuxe', 'admin'] });
   if (session && $('welcomeUser')) $('welcomeUser').textContent = `Xin chào, ${session?.user?.hoTen || 'chủ xe'}`;
+  if ($('ownerQuickActions')) {
+    $('ownerQuickActions').innerHTML = `
+      <a href="/owner/vehicles">Thêm xe mới</a>
+      <a href="/owner/availability">Tạo lịch trống</a>
+      <a href="/owner/contracts">Xem hợp đồng</a>
+      <a href="/owner/disputes">Báo cáo hư hại</a>
+    `;
+  }
   try {
-    const [dash, vehicles, disputes] = await Promise.all([
+    const [dash, vehiclesRes, disputesRes, contractsRes, availabilityRes] = await Promise.all([
       App.requestJson('GET', `${App.getApiBase()}/api/dashboard`),
       App.requestJson('GET', `${App.getApiBase()}/api/owner/vehicles`),
       App.requestJson('GET', `${App.getApiBase()}/api/owner/disputes`),
+      App.requestJson('GET', `${App.getApiBase()}/api/owner/contracts`),
+      App.requestJson('GET', `${App.getApiBase()}/api/owner/availability`),
     ]);
-    const rows = arr(vehicles.items);
-    $('kpiVehicles').textContent = rows.length;
-    $('kpiPending').textContent = rows.filter((r) => gv(r, 'trangthai') === 'choDuyet').length;
-    $('kpiActiveRent').textContent = rows.filter((r) => gv(r, 'trangthai') === 'dangThue').length;
-    $('kpiContracts').textContent = dash?.stats?.contracts || 0;
-    $('kpiDisputes').textContent = arr(disputes.items).length;
-    App.renderTable('ownerRecentVehicles', rows.slice(0, 6), [
+
+    const vehicles = arr(vehiclesRes.items);
+    const disputes = arr(disputesRes.items);
+    const contracts = arr(contractsRes.items);
+    const slots = arr(availabilityRes.items);
+    const activeContracts = contracts.filter((r) => OWNER_ACTIVE_CONTRACT_STATUSES.has(String(gv(r, 'trangthai'))));
+    const openDisputes = disputes.filter((r) => OWNER_OPEN_DISPUTE_STATUSES.has(String(gv(r, 'trangthai'))));
+    const pendingVehicles = vehicles.filter((r) => gv(r, 'trangthai') === 'choDuyet');
+    const rentingVehicles = vehicles.filter((r) => gv(r, 'trangthai') === 'dangThue');
+    const waitingReturn = contracts.filter((r) => String(gv(r, 'trangthai')) === 'choKiemTraTraXe');
+    const slotVehicleIds = new Set(slots.map((x) => gv(x, 'xeid')).filter(Boolean));
+    const noSchedule = vehicles.filter((v) => !slotVehicleIds.has(gv(v, 'id')));
+
+    $('kpiVehicles').textContent = String(vehicles.length);
+    $('kpiPending').textContent = String(pendingVehicles.length);
+    $('kpiActiveRent').textContent = String(rentingVehicles.length);
+    $('kpiContracts').textContent = String(dash?.stats?.contracts || activeContracts.length);
+    $('kpiDisputes').textContent = String(openDisputes.length);
+
+    ownerRenderQueue('ownerActionQueue', [
+      { label: 'Xe chờ duyệt', value: pendingVehicles.length, hint: 'Theo dõi để đảm bảo xe sớm sẵn sàng.' },
+      { label: 'Hợp đồng đang thuê', value: activeContracts.length, hint: 'Cần giám sát tiến độ thuê và hoàn cọc.' },
+      { label: 'Tranh chấp đang mở', value: openDisputes.length, hint: 'Ưu tiên xử lý để giảm thời gian treo cọc.' },
+      { label: 'Hợp đồng chờ kiểm tra trả xe', value: waitingReturn.length, hint: 'Kiểm tra xe để hoàn tất tất toán.' },
+      { label: 'Xe chưa có lịch trống', value: noSchedule.length, hint: 'Nên tạo lịch để tăng khả năng được đặt.' },
+    ]);
+
+    App.renderTable('ownerRecentVehicles', vehicles.slice(0, 6), [
       { key: 'bienso', label: 'Biển số' }, { key: 'hangxe', label: 'Hãng xe' }, { key: 'dongxe', label: 'Dòng xe' }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
     ]);
-  } catch (e) { App.showMessage('ownerDashboardMessage', e.message, 'error'); }
+
+    App.renderTable('ownerActiveContracts', activeContracts.slice(0, 6), [
+      { key: 'id', label: 'Mã HĐ', render: (r) => ownerContractCode(gv(r, 'id')) },
+      { key: 'xeid', label: 'Xe', render: (r) => ownerShortId(gv(r, 'xeid')) },
+      { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
+      { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+    ]);
+
+    App.renderTable('ownerRecentDisputes', disputes.slice(0, 6), [
+      { key: 'id', label: 'Mã TC', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
+      { key: 'hopdongthueid', label: 'Hợp đồng', render: (r) => ownerContractCode(gv(r, 'hopdongthueid')) },
+      { key: 'lydo', label: 'Lý do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 70) || 'Chưa cập nhật') },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+    ]);
+  } catch (e) {
+    ownerShowError('ownerDashboardMessage', e, 'Không thể tải dashboard chủ xe lúc này.');
+  }
 }
 
 async function initRenterDashboard() {
@@ -518,6 +772,7 @@ const PAGE_INIT = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   App.setRequiredMarkers();
+  if ($('inspectorBody')) setInspectorEmpty();
   const fn = PAGE_INIT[document.body?.dataset?.page];
   if (!fn) return;
   try { await fn(); } catch (e) { if ($('pageMessage')) { $('pageMessage').textContent = e.message; $('pageMessage').className = 'message error'; } }
@@ -526,19 +781,87 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initOwnerVehiclesSimple() {
   await App.guardPage({ roles: ['chuxe', 'admin'] });
   const form = $('vehicleForm');
+  const formPanelId = 'ownerVehicleFormPanel';
+  const detailPanelId = 'ownerVehicleDetailPanel';
+  const rowsState = { all: [], filtered: [] };
+
+  const applyFilter = () => {
+    const q = String($('ownerVehicleSearch')?.value || '').trim().toLowerCase();
+    const status = String($('ownerVehicleStatusFilter')?.value || '').trim();
+    rowsState.filtered = rowsState.all.filter((row) => {
+      const text = `${gv(row, 'bienso')} ${gv(row, 'hangxe')} ${gv(row, 'dongxe')}`.toLowerCase();
+      const matchQ = !q || text.includes(q);
+      const rowStatus = String(gv(row, 'displaytrangthai') || gv(row, 'trangthai') || '').trim();
+      const matchStatus = !status || rowStatus === status;
+      return matchQ && matchStatus;
+    });
+  };
+
+  const render = () => {
+    applyFilter();
+    ownerTogglePanel('ownerVehiclesEmpty', rowsState.filtered.length === 0);
+    App.renderTable('ownerVehiclesTable', rowsState.filtered, [
+      { key: 'bienso', label: 'Biển số' },
+      { key: 'hangxe', label: 'Hãng xe' },
+      { key: 'dongxe', label: 'Dòng xe' },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
+      { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
+      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+        <div class="table-actions">
+          <button type="button" class="table-action-btn" data-owner-vehicle-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn pending" data-owner-vehicle-action="schedule" data-row="${idx}">Lịch trống</button>
+          <button type="button" class="table-action-btn ok" data-owner-vehicle-action="copy" data-row="${idx}">Copy ID</button>
+        </div>
+      ` },
+    ], {
+      onRowClick: (row) => {
+        ownerTogglePanel(detailPanelId, true);
+        if ($('ownerVehicleDetail')) $('ownerVehicleDetail').innerHTML = ownerDetailHtml(row);
+      },
+    });
+  };
+
   const load = async () => {
     const data = await App.requestJson('GET', `${App.getApiBase()}/api/owner/vehicles`);
-    App.renderTable('ownerVehiclesTable', arr(data.items), [
-      { key: 'bienso', label: 'Biển số' }, { key: 'hangxe', label: 'Hãng xe' }, { key: 'dongxe', label: 'Dòng xe' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) }, { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
-    ]);
+    rowsState.all = arr(data.items);
+    render();
   };
+
+  $('toggleOwnerVehicleFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, true));
+  $('closeOwnerVehicleFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, false));
+  $('ownerVehicleSearch')?.addEventListener('input', render);
+  $('ownerVehicleStatusFilter')?.addEventListener('change', render);
+  $('ownerVehiclesTable')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-owner-vehicle-action]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const row = rowsState.filtered[Number(btn.getAttribute('data-row') || -1)];
+    if (!row) return;
+    const action = btn.getAttribute('data-owner-vehicle-action');
+    if (action === 'view') {
+      ownerTogglePanel(detailPanelId, true);
+      if ($('ownerVehicleDetail')) $('ownerVehicleDetail').innerHTML = ownerDetailHtml(row);
+    }
+    if (action === 'schedule') window.location.href = `/owner/availability?xeId=${encodeURIComponent(gv(row, 'id'))}`;
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã xe.');
+  });
+
   try {
     await load();
-  } catch (e) { App.showMessage('ownerVehicleMessage', e.message, 'error'); }
+  } catch (e) {
+    ownerShowError('ownerVehicleMessage', e, 'Không thể tải danh sách xe lúc này.');
+  }
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
     try {
+      App.setLoading(btn, true);
+      const dailyPrice = Number(App.requireValue($('giaTheoNgay')?.value, 'Thiếu giá theo ngày'));
+      if (!Number.isFinite(dailyPrice)) throw new Error('Giá theo ngày không hợp lệ.');
+      if (dailyPrice < 10000) throw new Error('Giá theo ngày tối thiểu là 10.000.');
+      if (dailyPrice % 10000 !== 0) throw new Error('Giá theo ngày phải tăng theo bước 10.000.');
       await App.requestJson('POST', `${App.getApiBase()}/api/vehicles`, {
         bienSo: App.requireValue($('bienSo')?.value, 'Thiếu biển số'),
         hangXe: App.requireValue($('hangXe')?.value, 'Thiếu hãng xe'),
@@ -546,7 +869,7 @@ async function initOwnerVehiclesSimple() {
         loaiXe: App.requireValue($('loaiXe')?.value, 'Thiếu loại xe'),
         namSanXuat: $('namSanXuat')?.value ? Number($('namSanXuat')?.value) : null,
         moTa: $('moTa')?.value?.trim() || null,
-        giaTheoNgay: Number($('giaTheoNgay')?.value || 0),
+        giaTheoNgay: dailyPrice,
         giaTheoGio: Number($('giaTheoGio')?.value || 0),
         baoHiem: $('baoHiem')?.value?.trim() || null,
         dangKiem: $('dangKiem')?.value?.trim() || null,
@@ -555,31 +878,104 @@ async function initOwnerVehiclesSimple() {
       });
       App.showMessage('ownerVehicleMessage', 'Đã lưu xe thành công.', 'success');
       form.reset();
+      ownerTogglePanel(formPanelId, false);
       await load();
-    } catch (er) { App.showMessage('ownerVehicleMessage', er.message, 'error'); }
+    } catch (er) {
+      ownerShowError('ownerVehicleMessage', er, 'Không thể lưu xe lúc này, vui lòng thử lại.');
+    } finally {
+      App.setLoading(btn, false);
+    }
   });
 }
 
 async function initOwnerAvailabilitySimple() {
   await App.guardPage({ roles: ['chuxe', 'admin'] });
   const form = $('availabilityForm');
+  const formPanelId = 'ownerAvailabilityFormPanel';
+  const detailPanelId = 'ownerAvailabilityDetailPanel';
+  const vehicleMap = new Map();
+  const state = { all: [], filtered: [] };
+  const presetXeId = new URLSearchParams(window.location.search).get('xeId');
+
+  const applyFilter = () => {
+    const q = String($('ownerAvailabilitySearch')?.value || '').trim().toLowerCase();
+    const status = String($('ownerAvailabilityStatusFilter')?.value || '').trim();
+    state.filtered = state.all.filter((row) => {
+      const vehicleText = (vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid')).toLowerCase();
+      const matchQ = !q || vehicleText.includes(q);
+      const matchStatus = !status || String(Boolean(gv(row, 'controng'))) === status;
+      return matchQ && matchStatus;
+    });
+  };
+
+  const render = () => {
+    applyFilter();
+    ownerTogglePanel('ownerAvailabilityEmpty', state.filtered.length === 0);
+    App.renderTable('ownerAvailabilityTable', state.filtered, [
+      { key: 'xeid', label: 'Xe', render: (r) => App.escapeHtml(vehicleMap.get(gv(r, 'xeid')) || ownerShortId(gv(r, 'xeid'))) },
+      { key: 'ngaybatdau', label: 'Bắt đầu', render: (r) => App.formatDate(gv(r, 'ngaybatdau')) },
+      { key: 'ngayketthuc', label: 'Kết thúc', render: (r) => App.formatDate(gv(r, 'ngayketthuc')) },
+      { key: 'controng', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'controng') ? 'Còn trống' : 'Không trống') },
+      { key: 'ghichu', label: 'Ghi chú', render: (r) => App.escapeHtml(gv(r, 'ghichu') || '—') },
+      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+        <div class="table-actions">
+          <button type="button" class="table-action-btn" data-owner-slot-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn ok" data-owner-slot-action="copy" data-row="${idx}">Copy ID</button>
+        </div>
+      ` },
+    ], {
+      onRowClick: (row) => {
+        ownerTogglePanel(detailPanelId, true);
+        if ($('ownerAvailabilityDetail')) $('ownerAvailabilityDetail').innerHTML = ownerDetailHtml(row);
+      },
+    });
+  };
+
   const load = async () => {
     const [vehicles, slots] = await Promise.all([
       App.requestJson('GET', `${App.getApiBase()}/api/owner/vehicles`),
       App.requestJson('GET', `${App.getApiBase()}/api/owner/availability`),
     ]);
-    App.renderSelect('xeId', arr(vehicles.items), 'id', (v) => `${gv(v, 'bienso')} - ${gv(v, 'hangxe')}`);
-    App.renderTable('ownerAvailabilityTable', arr(slots.items), [
-      { key: 'xeid', label: 'Xe' }, { key: 'ngaybatdau', label: 'Bắt đầu', render: (r) => App.formatDate(gv(r, 'ngaybatdau')) },
-      { key: 'ngayketthuc', label: 'Kết thúc', render: (r) => App.formatDate(gv(r, 'ngayketthuc')) }, { key: 'controng', label: 'Còn trống', render: (r) => App.statusBadge(gv(r, 'controng') ? 'Có' : 'Không') },
-    ]);
+    vehicleMap.clear();
+    arr(vehicles.items).forEach((v) => vehicleMap.set(gv(v, 'id'), ownerVehicleLabel(v)));
+    App.renderSelect('xeId', arr(vehicles.items), 'id', ownerVehicleLabel);
+    if (presetXeId && $('xeId')) {
+      $('xeId').value = presetXeId;
+      ownerTogglePanel(formPanelId, true);
+    }
+    state.all = arr(slots.items);
+    render();
   };
+
+  $('toggleOwnerAvailabilityFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, true));
+  $('closeOwnerAvailabilityFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, false));
+  $('ownerAvailabilitySearch')?.addEventListener('input', render);
+  $('ownerAvailabilityStatusFilter')?.addEventListener('change', render);
+  $('ownerAvailabilityTable')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-owner-slot-action]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const row = state.filtered[Number(btn.getAttribute('data-row') || -1)];
+    if (!row) return;
+    const action = btn.getAttribute('data-owner-slot-action');
+    if (action === 'view') {
+      ownerTogglePanel(detailPanelId, true);
+      if ($('ownerAvailabilityDetail')) $('ownerAvailabilityDetail').innerHTML = ownerDetailHtml(row);
+    }
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã lịch trống.');
+  });
+
   try {
     await load();
-  } catch (e) { App.showMessage('ownerAvailabilityMessage', e.message, 'error'); }
+  } catch (e) {
+    ownerShowError('ownerAvailabilityMessage', e, 'Không thể tải lịch trống lúc này.');
+  }
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
     try {
+      App.setLoading(btn, true);
       await App.requestJson('POST', `${App.getApiBase()}/api/owner/availability`, {
         xeId: App.requireValue($('xeId')?.value, 'Chưa chọn xe'),
         ngayBatDau: App.requireValue($('ngayBatDau')?.value, 'Thiếu ngày bắt đầu'),
@@ -589,54 +985,221 @@ async function initOwnerAvailabilitySimple() {
       });
       App.showMessage('ownerAvailabilityMessage', 'Đã lưu lịch trống.', 'success');
       form.reset();
+      ownerTogglePanel(formPanelId, false);
       await load();
-    } catch (er) { App.showMessage('ownerAvailabilityMessage', er.message, 'error'); }
+    } catch (er) {
+      ownerShowError('ownerAvailabilityMessage', er, 'Không thể lưu lịch trống lúc này, vui lòng thử lại.');
+    } finally {
+      App.setLoading(btn, false);
+    }
   });
 }
 
 async function initOwnerContractsSimple() {
   await App.guardPage({ roles: ['chuxe', 'admin'] });
-  try {
-    const data = await App.requestJson('GET', `${App.getApiBase()}/api/owner/contracts`);
-    App.renderTable('ownerContractsTable', arr(data.items), [
-      { key: 'id', label: 'Hợp đồng' }, { key: 'xeid', label: 'Xe' }, { key: 'nguoithueid', label: 'Khách thuê' },
-      { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+  const state = { all: [], filtered: [] };
+  const vehicleMap = new Map();
+
+  const applyFilter = () => {
+    const q = String($('ownerContractSearch')?.value || '').trim().toLowerCase();
+    const status = String($('ownerContractStatusFilter')?.value || '').trim();
+    state.filtered = state.all.filter((row) => {
+      const text = `${ownerContractCode(gv(row, 'id'))} ${vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid')} ${ownerCustomerCode(gv(row, 'nguoithueid'))}`.toLowerCase();
+      const matchQ = !q || text.includes(q);
+      const matchStatus = !status || String(gv(row, 'trangthai')) === status;
+      return matchQ && matchStatus;
+    });
+  };
+
+  const renderDetail = (row) => {
+    ownerTogglePanel('ownerContractDetailPanel', true);
+    if (!$('ownerContractDetail')) return;
+    $('ownerContractDetail').innerHTML = `
+      <div class="detail-grid">
+        <div class="kv"><span>Mã hợp đồng</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
+        <div class="kv"><span>Xe</span><strong>${App.escapeHtml(vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid'))}</strong></div>
+        <div class="kv"><span>Mã khách thuê</span><strong>${App.escapeHtml(gv(row, 'nguoithueid'))}</strong></div>
+        <div class="kv"><span>Tiền cọc</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'tongtiencoc') || 0))}</strong></div>
+        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(gv(row, 'trangthai') || ''))}</strong></div>
+        <div class="kv"><span>Tạo lúc</span><strong>${App.escapeHtml(App.formatDate(gv(row, 'taoluc')) || 'Chưa cập nhật')}</strong></div>
+      </div>
+      <div class="table-actions" style="margin-top:10px">
+        <button type="button" class="table-action-btn ok" data-owner-copy-contract="${App.escapeHtml(gv(row, 'id'))}">Copy Contract ID</button>
+        <button type="button" class="table-action-btn" data-owner-copy-vehicle="${App.escapeHtml(gv(row, 'xeid'))}">Copy Vehicle ID</button>
+      </div>
+    `;
+  };
+
+  const render = () => {
+    applyFilter();
+    ownerTogglePanel('ownerContractsEmpty', state.filtered.length === 0);
+    App.renderTable('ownerContractsTable', state.filtered, [
+      { key: 'id', label: 'Mã hợp đồng', render: (r) => ownerContractCode(gv(r, 'id')) },
+      { key: 'xeid', label: 'Xe', render: (r) => App.escapeHtml(vehicleMap.get(gv(r, 'xeid')) || ownerShortId(gv(r, 'xeid'))) },
+      { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
+      { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'taoluc', label: 'Ngày tạo', render: (r) => App.formatDate(gv(r, 'taoluc')) || '—' },
+      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+        <div class="table-actions">
+          <button type="button" class="table-action-btn" data-owner-contract-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn ok" data-owner-contract-action="copy" data-row="${idx}">Copy ID</button>
+        </div>
+      ` },
+    ], { onRowClick: renderDetail });
+  };
+
+  const load = async () => {
+    const [contracts, vehicles] = await Promise.all([
+      App.requestJson('GET', `${App.getApiBase()}/api/owner/contracts`),
+      App.requestJson('GET', `${App.getApiBase()}/api/owner/vehicles`),
     ]);
-  } catch (e) { App.showMessage('ownerContractsMessage', e.message, 'error'); }
+    vehicleMap.clear();
+    arr(vehicles.items).forEach((v) => vehicleMap.set(gv(v, 'id'), ownerVehicleLabel(v)));
+    state.all = arr(contracts.items);
+    render();
+  };
+
+  $('ownerContractSearch')?.addEventListener('input', render);
+  $('ownerContractStatusFilter')?.addEventListener('change', render);
+  $('ownerContractsTable')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-owner-contract-action]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const row = state.filtered[Number(btn.getAttribute('data-row') || -1)];
+    if (!row) return;
+    if (btn.getAttribute('data-owner-contract-action') === 'view') renderDetail(row);
+    if (btn.getAttribute('data-owner-contract-action') === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã hợp đồng.');
+  });
+  $('ownerContractDetailPanel')?.addEventListener('click', async (e) => {
+    const contractBtn = e.target.closest('[data-owner-copy-contract]');
+    if (contractBtn) return ownerCopy(contractBtn.getAttribute('data-owner-copy-contract'), 'Đã sao chép Contract ID.');
+    const vehicleBtn = e.target.closest('[data-owner-copy-vehicle]');
+    if (vehicleBtn) return ownerCopy(vehicleBtn.getAttribute('data-owner-copy-vehicle'), 'Đã sao chép Vehicle ID.');
+  });
+
+  try {
+    await load();
+  } catch (e) {
+    ownerShowError('ownerContractsMessage', e, 'Không thể tải danh sách hợp đồng lúc này.');
+  }
 }
 
 async function initOwnerDisputesSimple() {
   await App.guardPage({ roles: ['chuxe', 'admin'] });
   const form = $('ownerDamageForm');
+  const formPanelId = 'ownerDisputeFormPanel';
+  const state = { all: [], filtered: [] };
+  const contractMap = new Map();
+
+  const contractLabel = (c) => {
+    const code = ownerContractCode(gv(c, 'id'));
+    const vehicle = ownerShortId(gv(c, 'xeid'));
+    const customer = ownerCustomerCode(gv(c, 'nguoithueid'));
+    return `${code} - Xe ${vehicle} - ${customer}`;
+  };
+
+  const applyFilter = () => {
+    const q = String($('ownerDisputeSearch')?.value || '').trim().toLowerCase();
+    const status = String($('ownerDisputeStatusFilter')?.value || '').trim();
+    state.filtered = state.all.filter((row) => {
+      const label = contractMap.get(gv(row, 'hopdongthueid')) || ownerContractCode(gv(row, 'hopdongthueid'));
+      const text = `${ownerShortId(gv(row, 'id'))} ${label} ${gv(row, 'lydo')}`.toLowerCase();
+      const matchQ = !q || text.includes(q);
+      const matchStatus = !status || String(gv(row, 'trangthai')) === status;
+      return matchQ && matchStatus;
+    });
+  };
+
+  const renderDetail = (row) => {
+    ownerTogglePanel('ownerDisputeDetailPanel', true);
+    if (!$('ownerDisputeDetail')) return;
+    $('ownerDisputeDetail').innerHTML = `
+      <div class="detail-grid">
+        <div class="kv"><span>Mã tranh chấp</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
+        <div class="kv"><span>Hợp đồng</span><strong>${App.escapeHtml(contractMap.get(gv(row, 'hopdongthueid')) || gv(row, 'hopdongthueid'))}</strong></div>
+        <div class="kv"><span>Lý do</span><strong class="text-break">${App.escapeHtml(gv(row, 'lydo') || 'Chưa cập nhật')}</strong></div>
+        <div class="kv"><span>Chi phí</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'sotienphaithu') || gv(row, 'estimatedcost') || 0))}</strong></div>
+        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(gv(row, 'trangthai') || ''))}</strong></div>
+      </div>
+    `;
+  };
+
+  const render = () => {
+    applyFilter();
+    ownerTogglePanel('ownerDisputesEmpty', state.filtered.length === 0);
+    App.renderTable('ownerDisputesTable', state.filtered, [
+      { key: 'id', label: 'Mã tranh chấp', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
+      { key: 'hopdongthueid', label: 'Hợp đồng', render: (r) => App.escapeHtml(contractMap.get(gv(r, 'hopdongthueid')) || ownerContractCode(gv(r, 'hopdongthueid'))) },
+      { key: 'lydo', label: 'Lý do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 90) || 'Chưa cập nhật') },
+      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+        <div class="table-actions">
+          <button type="button" class="table-action-btn" data-owner-dispute-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn ok" data-owner-dispute-action="copy" data-row="${idx}">Copy ID</button>
+        </div>
+      ` },
+    ], { onRowClick: renderDetail });
+  };
+
   const load = async () => {
     const [contracts, disputes] = await Promise.all([
       App.requestJson('GET', `${App.getApiBase()}/api/owner/contracts`),
       App.requestJson('GET', `${App.getApiBase()}/api/owner/disputes`),
     ]);
-    App.renderSelect('contractId', arr(contracts.items), 'id', (c) => `${gv(c, 'id')} (${gv(c, 'trangthai')})`);
-    App.renderTable('ownerDisputesTable', arr(disputes.items), [
-      { key: 'id', label: 'Mã tranh chấp' }, { key: 'hopdongthueid', label: 'Hợp đồng' }, { key: 'lydo', label: 'Lý do' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
-    ]);
+    contractMap.clear();
+    arr(contracts.items).forEach((c) => contractMap.set(gv(c, 'id'), contractLabel(c)));
+    App.renderSelect('contractId', arr(contracts.items), 'id', contractLabel, 'Chọn hợp đồng');
+    state.all = arr(disputes.items);
+    render();
   };
+
+  $('toggleOwnerDisputeFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, true));
+  $('closeOwnerDisputeFormBtn')?.addEventListener('click', () => ownerTogglePanel(formPanelId, false));
+  $('ownerDisputeSearch')?.addEventListener('input', render);
+  $('ownerDisputeStatusFilter')?.addEventListener('change', render);
+  $('ownerDisputesTable')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-owner-dispute-action]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const row = state.filtered[Number(btn.getAttribute('data-row') || -1)];
+    if (!row) return;
+    const action = btn.getAttribute('data-owner-dispute-action');
+    if (action === 'view') renderDetail(row);
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã tranh chấp.');
+  });
+
   try {
     await load();
-  } catch (e) { App.showMessage('ownerDisputesMessage', e.message, 'error'); }
+  } catch (e) {
+    ownerShowError('ownerDisputesMessage', e, 'Không thể tải danh sách tranh chấp lúc này.');
+  }
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
     try {
+      App.setLoading(btn, true);
       const contractId = App.requireValue($('contractId')?.value, 'Chưa chọn hợp đồng');
       const evidenceUrls = ($('evidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
+      const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${contractId}/damage-claim`, {
         lyDo: App.requireValue($('lyDo')?.value, 'Thiếu lý do'),
         estimatedCost: Number($('estimatedCost')?.value || 0),
         evidenceUrls,
         ghiChu: $('ownerGhiChu')?.value?.trim() || null,
-      });
+      }, '', stepUpHeaders);
       App.showMessage('ownerDisputesMessage', 'Đã gửi báo cáo hư hại.', 'success');
       form.reset();
+      ownerTogglePanel(formPanelId, false);
       await load();
-    } catch (er) { App.showMessage('ownerDisputesMessage', er.message, 'error'); }
+    } catch (er) {
+      ownerShowError('ownerDisputesMessage', er, 'Không thể gửi báo cáo lúc này, vui lòng thử lại.');
+    } finally {
+      App.setLoading(btn, false);
+    }
   });
 }
 
@@ -739,7 +1302,8 @@ async function initRenterContractsSimple() {
   $('settleContractId')?.addEventListener('change', syncSettle);
   $('lockDepositBtn')?.addEventListener('click', async () => {
     try {
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('lockContractId')?.value, 'Chưa chọn hợp đồng')}/lock-deposit`, {});
+      const stepUpHeaders = await requireStepUpChallengeHeader();
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('lockContractId')?.value, 'Chưa chọn hợp đồng')}/lock-deposit`, {}, '', stepUpHeaders);
       App.showMessage('renterContractsMessage', 'Đã khóa cọc.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
@@ -749,7 +1313,8 @@ async function initRenterContractsSimple() {
     try {
       const id = App.requireValue($('returnContractId')?.value, 'Chưa chọn hợp đồng');
       const evidenceUrls = ($('returnEvidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/return-vehicle`, { ghiChu: App.requireValue($('returnNote')?.value, 'Thiếu ghi chú'), evidenceUrls });
+      const stepUpHeaders = await requireStepUpChallengeHeader();
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/return-vehicle`, { ghiChu: App.requireValue($('returnNote')?.value, 'Thiếu ghi chú'), evidenceUrls }, '', stepUpHeaders);
       App.showMessage('renterContractsMessage', 'Đã xác nhận trả xe.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
@@ -759,10 +1324,11 @@ async function initRenterContractsSimple() {
     const submitBtn = e.submitter || $('settleForm')?.querySelector('button[type="submit"]');
     try {
       if (submitBtn) submitBtn.disabled = true;
+      const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('settleContractId')?.value, 'Chưa chọn hợp đồng')}/settle`, {
         tongTienThanhToan: Number($('tongTienThanhToan')?.value || 0),
         tongTienHoanLai: Number($('tongTienHoanLai')?.value || 0),
-      });
+      }, '', stepUpHeaders);
       App.showMessage('renterContractsMessage', 'Đã tất toán hợp đồng.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }

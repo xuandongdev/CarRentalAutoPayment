@@ -56,7 +56,7 @@ class MeResponse(StrictBaseModel):
 
 class WalletNonceRequest(StrictBaseModel):
     walletaddress: str = Field(alias="walletAddress")
-    chainid: int = Field(alias="chainId")
+    chainid: Optional[int] = Field(default=1, alias="chainId")
     purpose: str = Field(default="link_wallet", alias="purpose")
 
     @field_validator("walletaddress")
@@ -66,6 +66,7 @@ class WalletNonceRequest(StrictBaseModel):
 
 
 class WalletNonceResponse(StrictBaseModel):
+    challengeid: Optional[str] = Field(default=None, alias="challengeId")
     walletaddress: str = Field(alias="walletAddress")
     nonce: str = Field(alias="nonce")
     message: str = Field(alias="message")
@@ -74,7 +75,9 @@ class WalletNonceResponse(StrictBaseModel):
 
 
 class WalletVerifyRequest(StrictBaseModel):
+    challengeid: Optional[str] = Field(default=None, alias="challengeId")
     walletaddress: str = Field(alias="walletAddress")
+    nonce: Optional[str] = Field(default=None, alias="nonce")
     message: str = Field(alias="message")
     signature: str = Field(alias="signature")
     purpose: str = Field(default="link_wallet", alias="purpose")
@@ -84,11 +87,24 @@ class WalletVerifyRequest(StrictBaseModel):
     def validate_required_text(cls, value: str, info):
         return normalize_non_empty_str(value, info.field_name)
 
+    @field_validator("challengeid", "nonce")
+    @classmethod
+    def validate_optional_text(cls, value: Optional[str]):
+        if value is None:
+            return value
+        text = value.strip()
+        return text or None
+
 
 class WalletVerifyResponse(StrictBaseModel):
     verified: bool = Field(alias="verified")
-    wallet: dict[str, Any] = Field(alias="wallet")
+    wallet: Optional[dict[str, Any]] = Field(default=None, alias="wallet")
     challenge: dict[str, Any] = Field(alias="challenge")
+    accesstoken: Optional[str] = Field(default=None, alias="accessToken")
+    tokentype: Optional[str] = Field(default=None, alias="tokenType")
+    expiresin: Optional[int] = Field(default=None, alias="expiresIn")
+    user: Optional[dict[str, Any]] = Field(default=None, alias="user")
+    session: Optional[dict[str, Any]] = Field(default=None, alias="session")
 
 
 class WalletUnlinkRequest(StrictBaseModel):

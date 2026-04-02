@@ -1,5 +1,38 @@
 ﻿<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hợp đồng chủ xe</title><link rel="stylesheet" href="/frontend/styles.css?v=20260330_ux1"></head>
 <body data-page="owner_contracts"><header><h1>Hợp đồng chủ xe</h1><nav id="topNav"></nav><div id="userMeta"></div></header>
-<main><section class="card"><h3>Danh sách hợp đồng liên quan</h3><div id="ownerContractsTable"></div><div id="ownerContractsMessage" class="message"></div></section></main>
+<main class="owner-workspace">
+  <section class="card owner-page-head">
+    <h2>Hợp đồng</h2>
+    <p class="note">Theo dõi hợp đồng theo ngữ cảnh dễ đọc thay vì mã kỹ thuật dài.</p>
+  </section>
+
+  <section class="card">
+    <div class="owner-action-bar">
+      <div class="owner-filters">
+        <label>Tìm kiếm hợp đồng<input id="ownerContractSearch" placeholder="Mã hợp đồng, biển số, khách thuê"></label>
+        <label>Trạng thái
+          <select id="ownerContractStatusFilter">
+            <option value="">Tất cả</option>
+            <option value="khoiTao">Khởi tạo</option>
+            <option value="choKhoaCoc">Chờ khóa cọc</option>
+            <option value="dangThue">Đang thuê</option>
+            <option value="choKiemTraTraXe">Chờ kiểm tra trả xe</option>
+            <option value="dangTranhChap">Đang tranh chấp</option>
+            <option value="hoanThanh">Hoàn thành</option>
+          </select>
+        </label>
+      </div>
+      <a href="/owner/disputes" class="btn-link secondary">Báo cáo hư hại</a>
+    </div>
+    <div id="ownerContractsTable"></div>
+    <div id="ownerContractsEmpty" class="empty-state owner-hide">Chưa có hợp đồng nào liên quan tới tài khoản của bạn.</div>
+    <div id="ownerContractsMessage" class="message"></div>
+  </section>
+
+  <section id="ownerContractDetailPanel" class="card owner-hide">
+    <h3>Chi tiết hợp đồng</h3>
+    <div id="ownerContractDetail"></div>
+  </section>
+</main>
 <script src="/frontend/app.js?v=20260330_ux1"></script><script src="/frontend/pages.js?v=20260330_ux1"></script></body></html>
