@@ -15,6 +15,7 @@ JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-env")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
 SIWE_DOMAIN = os.getenv("SIWE_DOMAIN", "127.0.0.1:8000")
 SIWE_URI = os.getenv("SIWE_URI", "http://127.0.0.1:8000")
+BOOKING_JOB_SECRET = os.getenv("BOOKING_JOB_SECRET", "")
 
 TABLES = {
     "users": os.getenv("TABLE_USERS", "nguoidung"),
@@ -118,3 +119,4 @@ TX_EVENT_NAMES = {
     "ESCROW_LOCK": "escrowLocked",
     "ESCROW_REFUND": "escrowRefunded",
 }
+

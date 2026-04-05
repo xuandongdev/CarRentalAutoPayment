@@ -91,12 +91,44 @@ create table if not exists public.DangKy (
     soNgayThue integer not null default 1,
     diaDiemNhan text,
     tongTienThue numeric(30,8) not null default 0,
+    diemUyTinLucDat numeric(4,2) not null default 0,
+    hanDuyetLuc timestamptz,
+    cheDoTuDong text
+        check (cheDoTuDong in ('autoApprove15m', 'autoCancel60m')),
+    quyetDinhBoi text
+        check (quyetDinhBoi in ('chuXe', 'admin', 'heThong')),
+    nguoiRaQuyetDinhId uuid references public.NguoiDung(id) on delete set null,
+    quyetDinhLuc timestamptz,
+    ghiChuHeThong text,
     trangThai text not null default 'choXacNhan'
         check (trangThai in ('choXacNhan', 'daDuyet', 'daHuy', 'daTaoHopDong', 'hoanTat')),
     ghiChu text,
     taoLuc timestamptz not null default now(),
     capNhatLuc timestamptz not null default now()
 );
+
+alter table if exists public.DangKy add column if not exists diemUyTinLucDat numeric(4,2) not null default 0;
+alter table if exists public.DangKy add column if not exists hanDuyetLuc timestamptz;
+alter table if exists public.DangKy add column if not exists cheDoTuDong text;
+alter table if exists public.DangKy add column if not exists quyetDinhBoi text;
+alter table if exists public.DangKy add column if not exists nguoiRaQuyetDinhId uuid references public.NguoiDung(id) on delete set null;
+alter table if exists public.DangKy add column if not exists quyetDinhLuc timestamptz;
+alter table if exists public.DangKy add column if not exists ghiChuHeThong text;
+
+do $$
+begin
+    if not exists (select 1 from pg_constraint where conname = 'dangky_chedotudong_check') then
+        alter table public.DangKy
+            add constraint dangky_chedotudong_check check (cheDoTuDong in ('autoApprove15m', 'autoCancel60m'));
+    end if;
+    if not exists (select 1 from pg_constraint where conname = 'dangky_quyetdinhboi_check') then
+        alter table public.DangKy
+            add constraint dangky_quyetdinhboi_check check (quyetDinhBoi in ('chuXe', 'admin', 'heThong'));
+    end if;
+end $$;
+
+create index if not exists idxDangKyTrangThaiHanDuyetLuc on public.DangKy (trangThai, hanDuyetLuc);
+create index if not exists idxDangKyXeIdTrangThai on public.DangKy (xeId, trangThai);
 
 -- 6. HOP DONG THUE
 create table if not exists public.HopDongThue (
@@ -275,6 +307,7 @@ create index if not exists idxWalletAuthChallengeWallet on public.WalletAuthChal
 create index if not exists idxWalletAuthChallengePurpose on public.WalletAuthChallenge (purpose);
 
 
+-- Deprecated: chi giu lai de backward compatibility, backend2 khong con goi ham nay trong create_booking moi.
 create or replace function public.create_booking_with_contract_atomic(
     p_nguoidungid uuid,
     p_xeid uuid,
@@ -453,3 +486,6 @@ begin
     );
 end;
 $$;
+
+
+

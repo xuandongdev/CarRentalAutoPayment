@@ -107,6 +107,39 @@ class CreateContractRequest(StrictBaseModel):
         return value
 
 
+class ApproveBookingRequest(StrictBaseModel):
+    tongtiencoc: Optional[float] = Field(default=None, alias="tongTienCoc")
+
+    @field_validator("tongtiencoc")
+    @classmethod
+    def validate_deposit(cls, value: Optional[float]):
+        if value is not None and value < 0:
+            raise ValueError("tongTienCoc phai >= 0")
+        return value
+
+
+class RejectBookingRequest(StrictBaseModel):
+    lydo: str = Field(alias="lyDo")
+
+    @field_validator("lydo")
+    @classmethod
+    def validate_reason(cls, value: str, info):
+        return normalize_non_empty_str(value, info.field_name)
+
+
+class ResolveExpiredBookingsRequest(StrictBaseModel):
+    limit: Optional[int] = 100
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, value: Optional[int]):
+        if value is None:
+            return 100
+        if value < 1 or value > 500:
+            raise ValueError("limit phai trong khoang 1..500")
+        return value
+
+
 class SettleContractRequest(StrictBaseModel):
     tongtienthanhtoan: float = Field(alias="tongTienThanhToan")
     tongtienhoanlai: float = Field(default=0, alias="tongTienHoanLai")
@@ -193,4 +226,5 @@ class AdminConfirmDamageRequest(StrictBaseModel):
         if value < 0:
             raise ValueError("approvedCost phai >= 0")
         return value
+
 

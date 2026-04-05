@@ -9,17 +9,20 @@ from supabase import Client, create_client
 
 from modules.auth import AuthService, extract_bearer_token
 from modules.auth_models import LoginRequest, RegisterRequest, WalletNonceRequest, WalletUnlinkRequest, WalletVerifyRequest
-from modules.config import NODE_DATA_DIR, SUPABASE_KEY, SUPABASE_URL
+from modules.config import BOOKING_JOB_SECRET, NODE_DATA_DIR, SUPABASE_KEY, SUPABASE_URL
 from modules.html_page import HTML_PAGE
 from modules.models import (
     AddVehicleRequest,
     AdminConfirmDamageRequest,
     AdminConfirmNoDamageRequest,
+    ApproveBookingRequest,
     ConfirmContractStepRequest,
     CreateAvailabilityRequest,
     CreateBookingRequest,
     CreateContractRequest,
     CreateDamageClaimRequest,
+    RejectBookingRequest,
+    ResolveExpiredBookingsRequest,
     ReturnVehicleRequest,
     SettleContractRequest,
     UpdateVehicleStatusRequest,
@@ -642,12 +645,42 @@ def api_renter_bookings(current_user: dict = Depends(require_active_user)):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.get("/api/owner/bookings")
+def api_owner_bookings(current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return {"items": require_service().list_owner_bookings(current_user["user"]["id"])}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/bookings/{booking_id}/approve")
+def api_approve_booking(booking_id: str, req: ApproveBookingRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return require_service().approve_booking(booking_id, current_user["user"]["id"], req.tongtiencoc)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/bookings/{booking_id}/reject")
+def api_reject_booking(booking_id: str, req: RejectBookingRequest, current_user: dict = Depends(require_active_user)):
+    try:
+        _require_roles(current_user, "chuxe", "admin")
+        return require_service().reject_booking(booking_id, current_user["user"]["id"], req.lydo)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @app.post("/api/contracts/from-booking")
 def api_create_contract_from_booking(req: CreateContractRequest, current_user: dict = Depends(require_active_user)):
     try:
-        booking = require_service().one("bookings", id=req.dangkyid)
-        _require_same_user_or_admin(current_user, booking.get("nguoidungid"), "Chi nguoi thue hoac admin moi duoc tao contract tu booking nay")
-        return require_service().create_contract_from_booking(req)
+        _require_roles(current_user, "chuxe", "admin")
+        return require_service().create_contract_from_booking(req, current_user["user"]["id"], _user_role(current_user))
     except HTTPException:
         raise
     except Exception as exc:
@@ -851,6 +884,25 @@ def api_contract_money_flow(contract_id: str, current_user: dict = Depends(requi
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.post("/api/internal/jobs/resolve-expired-bookings")
+def api_resolve_expired_bookings_job(
+    req: Optional[ResolveExpiredBookingsRequest] = None,
+    limit: Optional[int] = None,
+    job_secret: Optional[str] = Header(default=None, alias="X-Internal-Job-Secret"),
+):
+    try:
+        if not BOOKING_JOB_SECRET:
+            raise HTTPException(status_code=503, detail="BOOKING_JOB_SECRET chua duoc cau hinh")
+        if job_secret != BOOKING_JOB_SECRET:
+            raise HTTPException(status_code=403, detail="Sai X-Internal-Job-Secret")
+        effective_limit = limit if limit is not None else (100 if req is None else req.limit)
+        return require_service().resolve_expired_pending_bookings(effective_limit or 100)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @app.get("/api/admin/users")
 def api_admin_users(current_user: dict = Depends(_require_admin)):
     try:
@@ -894,6 +946,11 @@ def api_admin_disputes(current_user: dict = Depends(_require_admin)):
         return {"items": rows}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/owner/bookings")
+def owner_bookings_page(current_user: Optional[dict] = Depends(optional_current_user)):
+    return _role_page("owner/bookings.html", current_user, "chuxe", "admin")
 
 
 if __name__ == "__main__":

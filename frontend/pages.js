@@ -1,4 +1,4 @@
-﻿const $ = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 const arr = (v) => (Array.isArray(v) ? v : []);
 const gv = (r, ...k) => { for (const x of k) { if (r && r[x] !== undefined && r[x] !== null) return r[x]; } return ''; };
 const j = (v) => { try { return JSON.stringify(v ?? {}, null, 2); } catch { return String(v ?? ''); } };
@@ -14,8 +14,8 @@ function disputePriority(row) {
   const status = String(gv(row, 'trangthai') || '');
   const amount = Number(gv(row, 'sotienphaithu') || 0);
   if (status === 'dangMo' || status === 'dangXuLy') return { label: 'Cao', cls: 'danger' };
-  if (amount > 0) return { label: 'Trung bình', cls: 'pending' };
-  return { label: 'Thấp', cls: 'ok' };
+  if (amount > 0) return { label: 'Trung b�nh', cls: 'pending' };
+  return { label: 'Th?p', cls: 'ok' };
 }
 
 function ensureModalRoot() {
@@ -32,16 +32,16 @@ function closeModal() {
   if (root) root.innerHTML = '';
 }
 
-function confirmModal({ title, message, confirmText = 'Xác nhận', danger = false }) {
+function confirmModal({ title, message, confirmText = 'X�c nh?n', danger = false }) {
   return new Promise((resolve) => {
     const root = ensureModalRoot();
     root.innerHTML = `
       <div class="modal-overlay">
         <div class="modal-card">
-          <h3>${App.escapeHtml(title || 'Xác nhận thao tác')}</h3>
+          <h3>${App.escapeHtml(title || 'X�c nh?n thao t�c')}</h3>
           <p>${App.escapeHtml(message || '')}</p>
           <div class="modal-actions">
-            <button type="button" id="modalCancelBtn" class="btn-link secondary">Hủy</button>
+            <button type="button" id="modalCancelBtn" class="btn-link secondary">H?y</button>
             <button type="button" id="modalConfirmBtn" class="btn-link ${danger ? 'danger' : ''}">${App.escapeHtml(confirmText)}</button>
           </div>
         </div>
@@ -60,19 +60,19 @@ function disputeDecisionModal({ row, mode }) {
     root.innerHTML = `
       <div class="modal-overlay">
         <div class="modal-card">
-          <h3>${isDamage ? 'Xác nhận có hư hại' : 'Xác nhận không hư hại'}</h3>
-          <p>Tranh chấp: <strong>${App.escapeHtml(gv(row, 'id'))}</strong></p>
+          <h3>${isDamage ? 'X�c nh?n c� hu h?i' : 'X�c nh?n kh�ng hu h?i'}</h3>
+          <p>Tranh ch?p: <strong>${App.escapeHtml(gv(row, 'id'))}</strong></p>
           ${isDamage ? `
-            <label>Chi phí duyệt
+            <label>Chi ph� duy?t
               <input id="modalApprovedCost" type="number" min="0" step="0.01" data-required="true">
             </label>
           ` : ''}
-          <label>Kết luận
-            <textarea id="modalDecisionNote" data-required="true" placeholder="Nhập kết luận xử lý"></textarea>
+          <label>K?t lu?n
+            <textarea id="modalDecisionNote" data-required="true" placeholder="Nh?p k?t lu?n x? l�"></textarea>
           </label>
           <div class="modal-actions">
-            <button type="button" id="modalCancelBtn" class="btn-link secondary">Hủy</button>
-            <button type="button" id="modalConfirmBtn" class="btn-link ${isDamage ? 'danger' : ''}">Xác nhận</button>
+            <button type="button" id="modalCancelBtn" class="btn-link secondary">H?y</button>
+            <button type="button" id="modalConfirmBtn" class="btn-link ${isDamage ? 'danger' : ''}">X�c nh?n</button>
           </div>
         </div>
       </div>
@@ -82,9 +82,9 @@ function disputeDecisionModal({ row, mode }) {
     document.getElementById('modalCancelBtn')?.addEventListener('click', () => done(null));
     document.getElementById('modalConfirmBtn')?.addEventListener('click', () => {
       try {
-        const decisionNote = App.requireValue(document.getElementById('modalDecisionNote')?.value, 'Thiếu kết luận');
+        const decisionNote = App.requireValue(document.getElementById('modalDecisionNote')?.value, 'Thi?u k?t lu?n');
         if (!isDamage) return done({ decisionNote });
-        const approvedCost = Number(App.requireValue(document.getElementById('modalApprovedCost')?.value, 'Thiếu chi phí duyệt'));
+        const approvedCost = Number(App.requireValue(document.getElementById('modalApprovedCost')?.value, 'Thi?u chi ph� duy?t'));
         done({ decisionNote, approvedCost });
       } catch (e) {
         alert(e.message);
@@ -93,7 +93,7 @@ function disputeDecisionModal({ row, mode }) {
   });
 }
 
-function setInspectorEmpty(message = 'Chọn một bản ghi để xem JSON và metadata.') {
+function setInspectorEmpty(message = 'Ch?n m?t b?n ghi d? xem JSON v� metadata.') {
   if ($('inspectorTitle')) $('inspectorTitle').textContent = 'JSON Inspector';
   if ($('inspectorTabs')) $('inspectorTabs').innerHTML = '';
   if ($('inspectorBody')) $('inspectorBody').innerHTML = `<div class="empty-state inspector-empty">${App.escapeHtml(message)}</div>`;
@@ -121,7 +121,7 @@ function setInspector(title, data, events = [], tx = []) {
 
 function setDetail(id, row) {
   if (!$(id)) return;
-  if (!row) return ($(id).innerHTML = '<div class="empty-state">Chọn bản ghi để xem chi tiết.</div>');
+  if (!row) return ($(id).innerHTML = '<div class="empty-state">Ch?n b?n ghi d? xem chi ti?t.</div>');
   const html = Object.entries(row).slice(0, 18).map(([k, v]) => `<div class="kv"><span>${App.escapeHtml(k)}</span><strong>${App.escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</strong></div>`).join('');
   $(id).innerHTML = `<div class="detail-grid">${html}</div>`;
 }
@@ -139,19 +139,19 @@ async function initLanding() {
     const root = $('featuredVehicles');
     if (root) {
       if (!prioritized.length) {
-        root.innerHTML = '<div class="empty-state">Hiện chưa có xe công khai nổi bật. Vui lòng quay lại sau.</div>';
+        root.innerHTML = '<div class="empty-state">Hi?n chua c� xe c�ng khai n?i b?t. Vui l�ng quay l?i sau.</div>';
       } else {
         root.innerHTML = prioritized.map((row) => {
-          const brand = App.escapeHtml(gv(row, 'hangxe') || 'Chưa cập nhật');
-          const model = App.escapeHtml(gv(row, 'dongxe') || 'Chưa cập nhật');
-          const plate = App.escapeHtml(gv(row, 'bienso') || gv(row, 'id') || 'Chưa cập nhật');
+          const brand = App.escapeHtml(gv(row, 'hangxe') || 'Chua c?p nh?t');
+          const model = App.escapeHtml(gv(row, 'dongxe') || 'Chua c?p nh?t');
+          const plate = App.escapeHtml(gv(row, 'bienso') || gv(row, 'id') || 'Chua c?p nh?t');
           const description = App.escapeHtml(gv(row, 'mota') || `${gv(row, 'hangxe') || 'Xe'} ${gv(row, 'dongxe') || ''}`.trim());
-          const statusHtml = App.statusBadge(vehicleDisplayStatus(row) || 'Chưa cập nhật');
+          const statusHtml = App.statusBadge(vehicleDisplayStatus(row) || 'Chua c?p nh?t');
           const price = App.escapeHtml(App.formatMoney(gv(row, 'giatheongay') || 0));
           const imageUrl = gv(row, 'image', 'imageurl', 'thumbnail', 'photo', 'anhxe');
           const imageHtml = imageUrl
-            ? `<img src="${App.escapeHtml(String(imageUrl))}" alt="${brand} ${model}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;vehicle-image-fallback&quot;>Không có ảnh</div>';">`
-            : '<div class="vehicle-image-fallback">Không có ảnh</div>';
+            ? `<img src="${App.escapeHtml(String(imageUrl))}" alt="${brand} ${model}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;vehicle-image-fallback&quot;>Kh�ng c� ?nh</div>';">`
+            : '<div class="vehicle-image-fallback">Kh�ng c� ?nh</div>';
           return `
             <article class="vehicle-card">
               <div class="vehicle-image">${imageHtml}</div>
@@ -160,11 +160,11 @@ async function initLanding() {
                   <h4>${brand} ${model}</h4>
                   ${statusHtml}
                 </div>
-                <p class="vehicle-ident">Biển số: <strong>${plate}</strong></p>
+                <p class="vehicle-ident">Bi?n s?: <strong>${plate}</strong></p>
                 <p class="vehicle-desc">${description}</p>
                 <div class="vehicle-bottom-row">
-                  <div class="vehicle-price">${price} / ngày</div>
-                  <a class="vehicle-link" href="/vehicles">Xem công khai</a>
+                  <div class="vehicle-price">${price} / ng�y</div>
+                  <a class="vehicle-link" href="/vehicles">Xem c�ng khai</a>
                 </div>
               </div>
             </article>
@@ -178,7 +178,7 @@ async function initLanding() {
 async function requireStepUpChallengeHeader() {
   const verified = await App.performStepUpAuth();
   const challengeId = verified?.challenge?.id || verified?.challengeId;
-  if (!challengeId) throw new Error('Không lấy được step-up challenge id sau khi xác thực ví.');
+  if (!challengeId) throw new Error('Kh�ng l?y du?c step-up challenge id sau khi x�c th?c v�.');
   return { 'X-Step-Up-Challenge-Id': challengeId };
 }
 
@@ -209,8 +209,8 @@ async function initLogin() {
     try {
       App.setLoading(btn, true);
       const data = await App.requestJson('POST', `${App.getApiBase()}/auth/login`, {
-        identifier: App.requireValue($('identifier')?.value, 'Thiếu identifier'),
-        password: App.requireValue($('password')?.value, 'Thiếu password'),
+        identifier: App.requireValue($('identifier')?.value, 'Thi?u identifier'),
+        password: App.requireValue($('password')?.value, 'Thi?u password'),
       }, '');
       App.setToken(data.accessToken);
       App.redirectByRole(data?.user?.vaiTro);
@@ -223,8 +223,8 @@ async function initLogin() {
     if (box) box.textContent = text;
   };
   if (!App.hasEthereumProvider()) {
-    setWalletState('Không phát hiện MetaMask trên trình duyệt này.');
-    App.showMessage('walletLoginMessage', 'Bạn cần cài MetaMask để dùng đăng nhập bằng ví.', 'error');
+    setWalletState('Kh�ng ph�t hi?n MetaMask tr�n tr�nh duy?t n�y.');
+    App.showMessage('walletLoginMessage', 'B?n c?n c�i MetaMask d? d�ng dang nh?p b?ng v�.', 'error');
   }
   $('walletConnectBtn')?.addEventListener('click', async () => {
     const btn = $('walletConnectBtn');
@@ -232,13 +232,13 @@ async function initLogin() {
       App.setLoading(btn, true);
       const { address, chainId } = await App.connectMetaMask();
       connectedWallet = { address, chainId };
-      setWalletState(`Đã kết nối: ${address} | chainId: ${chainId}`);
+      setWalletState(`�� k?t n?i: ${address} | chainId: ${chainId}`);
       $('walletSignInBtn').disabled = false;
-      App.showMessage('walletLoginMessage', 'Đã kết nối ví thành công. Bấm "Ký để đăng nhập".', 'success');
+      App.showMessage('walletLoginMessage', '�� k?t n?i v� th�nh c�ng. B?m "K� d? dang nh?p".', 'success');
     } catch (error) {
       connectedWallet = null;
       $('walletSignInBtn').disabled = true;
-      setWalletState('Chưa kết nối ví.');
+      setWalletState('Chua k?t n?i v�.');
       App.showMessage('walletLoginMessage', error.message, 'error');
     } finally {
       App.setLoading(btn, false);
@@ -247,7 +247,7 @@ async function initLogin() {
   $('walletSignInBtn')?.addEventListener('click', async () => {
     const btn = $('walletSignInBtn');
     try {
-      if (!connectedWallet) throw new Error('Vui lòng kết nối MetaMask trước khi ký đăng nhập.');
+      if (!connectedWallet) throw new Error('Vui l�ng k?t n?i MetaMask tru?c khi k� dang nh?p.');
       App.setLoading(btn, true);
       const challenge = await App.startWalletChallenge({
         walletAddress: connectedWallet.address,
@@ -263,13 +263,13 @@ async function initLogin() {
         signature,
         purpose: 'login_wallet',
       });
-      if (!verified?.accessToken) throw new Error('Đăng nhập ví thất bại, không nhận được session.');
+      if (!verified?.accessToken) throw new Error('�ang nh?p v� th?t b?i, kh�ng nh?n du?c session.');
       App.setToken(verified.accessToken);
       App.redirectByRole(verified?.user?.vaiTro);
     } catch (error) {
-      const message = String(error?.message || 'Đăng nhập ví thất bại.');
+      const message = String(error?.message || '�ang nh?p v� th?t b?i.');
       if (message.toLowerCase().includes('lien ket')) {
-        App.showMessage('walletLoginMessage', `${message} Hãy đăng nhập tài khoản để liên kết ví trước.`, 'error');
+        App.showMessage('walletLoginMessage', `${message} H�y dang nh?p t�i kho?n d? li�n k?t v� tru?c.`, 'error');
       } else {
         App.showMessage('walletLoginMessage', message, 'error');
       }
@@ -287,12 +287,12 @@ async function initRegister() {
     const btn = form.querySelector('button[type="submit"]');
     try {
       App.setLoading(btn, true);
-      const password = App.requireValue($('password')?.value, 'Thiếu mật khẩu');
-      if (password !== App.requireValue($('confirmPassword')?.value, 'Thiếu xác nhận mật khẩu')) throw new Error('Mật khẩu không khớp');
+      const password = App.requireValue($('password')?.value, 'Thi?u m?t kh?u');
+      if (password !== App.requireValue($('confirmPassword')?.value, 'Thi?u x�c nh?n m?t kh?u')) throw new Error('M?t kh?u kh�ng kh?p');
       await App.requestJson('POST', `${App.getApiBase()}/auth/register`, {
-        hoTen: App.requireValue($('hoTen')?.value, 'Thiếu họ tên'), email: $('email')?.value?.trim() || '', soDienThoai: $('soDienThoai')?.value?.trim() || '', password,
+        hoTen: App.requireValue($('hoTen')?.value, 'Thi?u h? t�n'), email: $('email')?.value?.trim() || '', soDienThoai: $('soDienThoai')?.value?.trim() || '', password,
       }, '');
-      App.showMessage('registerMessage', 'Đăng ký thành công, vui lòng đăng nhập.', 'success');
+      App.showMessage('registerMessage', '�ang k� th�nh c�ng, vui l�ng dang nh?p.', 'success');
     } catch (e2) { App.showMessage('registerMessage', e2.message, 'error'); } finally { App.setLoading(btn, false); }
   });
 }
@@ -312,11 +312,11 @@ async function initAdminDashboard() {
     $('kpiSync').textContent = gv(overview, 'syncStatus') || 'unknown';
 
     const work = [
-      ...arr(overview.vehicles).filter((v) => gv(v, 'trangthai') === 'choDuyet').map((x) => ({ type: 'vehicle', id: x.id, label: `Duyệt xe ${gv(x, 'bienso')}`, row: x })),
-      ...arr(overview.disputes).filter((v) => ['dangMo', 'dangXuLy'].includes(gv(v, 'trangthai'))).map((x) => ({ type: 'dispute', id: x.id, label: `Xử lý tranh chấp ${x.id}`, row: x })),
+      ...arr(overview.vehicles).filter((v) => gv(v, 'trangthai') === 'choDuyet').map((x) => ({ type: 'vehicle', id: x.id, label: `Duy?t xe ${gv(x, 'bienso')}`, row: x })),
+      ...arr(overview.disputes).filter((v) => ['dangMo', 'dangXuLy'].includes(gv(v, 'trangthai'))).map((x) => ({ type: 'dispute', id: x.id, label: `X? l� tranh ch?p ${x.id}`, row: x })),
     ];
     App.renderTable('adminWorkbenchTable', work, [
-      { key: 'type', label: 'Loại' }, { key: 'label', label: 'Công việc' }, { key: 'id', label: 'ID' },
+      { key: 'type', label: 'Lo?i' }, { key: 'label', label: 'C�ng vi?c' }, { key: 'id', label: 'ID' },
     ], { onRowClick: (x) => { setDetail('adminEntityDetail', x.row); setInspector(`Workbench ${x.type}`, x.row); } });
   } catch (e) { App.showMessage('adminDashboardMessage', e.message, 'error'); }
 }
@@ -340,22 +340,22 @@ async function initAdminList(title, endpoint, cols, getContractId = null, onSele
   } catch (e) { App.showMessage('adminListMessage', e.message, 'error'); }
 }
 
-async function initAdminUsers() { return initAdminList('Người dùng', '/api/admin/users', [
-  { key: 'hoten', label: 'Họ tên' }, { key: 'email', label: 'Email' }, { key: 'sodienthoai', label: 'Điện thoại' },
-  { key: 'vaitro', label: 'Vai trò', render: (r) => App.statusBadge(gv(r, 'vaitro')) }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+async function initAdminUsers() { return initAdminList('Ngu?i d�ng', '/api/admin/users', [
+  { key: 'hoten', label: 'H? t�n' }, { key: 'email', label: 'Email' }, { key: 'sodienthoai', label: '�i?n tho?i' },
+  { key: 'vaitro', label: 'Vai tr�', render: (r) => App.statusBadge(gv(r, 'vaitro')) }, { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
 ]); }
 
 async function initAdminVehicles() {
   await App.guardPage({ roles: ['admin'] });
   const updateStatus = async (row, trangThai) => {
     const ok = await confirmModal({
-      title: 'Xác nhận cập nhật trạng thái xe',
-      message: `Xe ${gv(row, 'bienso')} sẽ chuyển sang trạng thái ${trangThai}.`,
-      confirmText: 'Cập nhật',
+      title: 'X�c nh?n c?p nh?t tr?ng th�i xe',
+      message: `Xe ${gv(row, 'bienso')} s? chuy?n sang tr?ng th�i ${trangThai}.`,
+      confirmText: 'C?p nh?t',
     });
     if (!ok) return;
     await App.requestJson('PATCH', `${App.getApiBase()}/api/admin/vehicles/${gv(row, 'id')}/status`, { trangThai });
-    App.showMessage('adminListMessage', `Đã cập nhật xe ${gv(row, 'bienso')} -> ${trangThai}.`, 'success');
+    App.showMessage('adminListMessage', `�� c?p nh?t xe ${gv(row, 'bienso')} -> ${trangThai}.`, 'success');
     await initAdminVehicles();
   };
 
@@ -364,19 +364,19 @@ async function initAdminVehicles() {
     const rows = arr(res.items);
     $('adminListCounter').textContent = rows.length;
     App.renderTable('adminListTable', rows, [
-      { key: 'bienso', label: 'Biển số' },
-      { key: 'hangxe', label: 'Hãng xe' },
-      { key: 'dongxe', label: 'Dòng xe' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
-      { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
+      { key: 'bienso', label: 'Bi?n s?' },
+      { key: 'hangxe', label: 'H�ng xe' },
+      { key: 'dongxe', label: 'D�ng xe' },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'giatheongay', label: 'Gi�/ng�y', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
       {
         key: 'actions',
-        label: 'Thao tác nhanh',
+        label: 'Thao t�c nhanh',
         render: (_r, idx) => `
           <div class="table-actions">
-            <button type="button" class="table-action-btn ok" data-admin-action="vehicle-approve" data-row="${idx}">Duyệt</button>
-            <button type="button" class="table-action-btn pending" data-admin-action="vehicle-maintain" data-row="${idx}">Bảo trì</button>
-            <button type="button" class="table-action-btn danger" data-admin-action="vehicle-stop" data-row="${idx}">Ngừng</button>
+            <button type="button" class="table-action-btn ok" data-admin-action="vehicle-approve" data-row="${idx}">Duy?t</button>
+            <button type="button" class="table-action-btn pending" data-admin-action="vehicle-maintain" data-row="${idx}">B?o tr�</button>
+            <button type="button" class="table-action-btn danger" data-admin-action="vehicle-stop" data-row="${idx}">Ng?ng</button>
           </div>
         `,
       },
@@ -386,7 +386,7 @@ async function initAdminVehicles() {
         setInspector(`Xe ${gv(row, 'bienso')}`, row);
         if ($('adminModuleActions')) {
           $('adminModuleActions').innerHTML = `
-            <label>Trạng thái mới
+            <label>Tr?ng th�i m?i
               <select id="adminVehicleStatusSelect">
                 <option value="choDuyet">choDuyet</option>
                 <option value="sanSang">sanSang</option>
@@ -395,14 +395,14 @@ async function initAdminVehicles() {
                 <option value="ngungHoatDong">ngungHoatDong</option>
               </select>
             </label>
-            <button id="adminApproveVehicleBtn" type="button">Cập nhật trạng thái xe đang chọn</button>
+            <button id="adminApproveVehicleBtn" type="button">C?p nh?t tr?ng th�i xe dang ch?n</button>
           `;
           $('adminVehicleStatusSelect').value = gv(row, 'trangthai') || 'choDuyet';
           $('adminApproveVehicleBtn').onclick = async () => {
             try {
               const btn = $('adminApproveVehicleBtn');
               App.setLoading(btn, true);
-              await updateStatus(row, App.requireValue($('adminVehicleStatusSelect')?.value, 'Thiếu trạng thái'));
+              await updateStatus(row, App.requireValue($('adminVehicleStatusSelect')?.value, 'Thi?u tr?ng th�i'));
             } catch (er) {
               App.showMessage('adminListMessage', er.message, 'error');
             } finally {
@@ -438,14 +438,14 @@ async function initAdminVehicles() {
 }
 
 async function initAdminBookings() { return initAdminList('Booking', '/api/admin/bookings', [
-  { key: 'id', label: 'Mã booking' }, { key: 'xeid', label: 'Xe' }, { key: 'nguoidungid', label: 'Khách thuê' },
-  { key: 'songaythue', label: 'Số ngày' }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+  { key: 'id', label: 'M� booking' }, { key: 'xeid', label: 'Xe' }, { key: 'nguoidungid', label: 'Kh�ch thu�' },
+  { key: 'songaythue', label: 'S? ng�y' }, { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
 ], (r) => gv(r, 'hopdongthueid')); }
 
-async function initAdminContracts() { return initAdminList('Hợp đồng', '/api/admin/contracts', [
-  { key: 'id', label: 'Mã hợp đồng' }, { key: 'xeid', label: 'Xe' }, { key: 'nguoithueid', label: 'Khách thuê' },
-  { key: 'chuxeid', label: 'Chủ xe' }, { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-  { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+async function initAdminContracts() { return initAdminList('H?p d?ng', '/api/admin/contracts', [
+  { key: 'id', label: 'M� h?p d?ng' }, { key: 'xeid', label: 'Xe' }, { key: 'nguoithueid', label: 'Kh�ch thu�' },
+  { key: 'chuxeid', label: 'Ch? xe' }, { key: 'tongtiencoc', label: 'Ti?n c?c', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+  { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
 ], (r) => gv(r, 'id')); }
 
 async function initAdminDisputes() {
@@ -457,7 +457,7 @@ async function initAdminDisputes() {
     await App.requestJson('POST', `${App.getApiBase()}/api/disputes/${gv(row, 'id')}/admin-confirm-no-damage`, {
       decisionNote: data.decisionNote,
     }, '', stepUpHeaders);
-    App.showMessage('adminListMessage', `Đã xử lý tranh chấp ${gv(row, 'id')} (không hư hại).`, 'success');
+    App.showMessage('adminListMessage', `�� x? l� tranh ch?p ${gv(row, 'id')} (kh�ng hu h?i).`, 'success');
     await initAdminDisputes();
   };
   const applyDamage = async (row) => {
@@ -468,7 +468,7 @@ async function initAdminDisputes() {
       approvedCost: data.approvedCost,
       decisionNote: data.decisionNote,
     }, '', stepUpHeaders);
-    App.showMessage('adminListMessage', `Đã xử lý tranh chấp ${gv(row, 'id')} (có hư hại).`, 'success');
+    App.showMessage('adminListMessage', `�� x? l� tranh ch?p ${gv(row, 'id')} (c� hu h?i).`, 'success');
     await initAdminDisputes();
   };
   try {
@@ -476,26 +476,26 @@ async function initAdminDisputes() {
     const rows = arr(res.items);
     $('adminListCounter').textContent = rows.length;
     App.renderTable('adminListTable', rows, [
-      { key: 'id', label: 'Mã tranh chấp' },
-      { key: 'hopdongthueid', label: 'Hợp đồng' },
-      { key: 'lydo', label: 'Lý do' },
+      { key: 'id', label: 'M� tranh ch?p' },
+      { key: 'hopdongthueid', label: 'H?p d?ng' },
+      { key: 'lydo', label: 'L� do' },
       {
         key: 'priority',
-        label: 'Ưu tiên',
+        label: 'Uu ti�n',
         render: (r) => {
           const p = disputePriority(r);
           return `<span class="badge ${p.cls}">${p.label}</span>`;
         },
       },
-      { key: 'sotienphaithu', label: 'Số tiền', render: (r) => App.formatMoney(gv(r, 'sotienphaithu')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'sotienphaithu', label: 'S? ti?n', render: (r) => App.formatMoney(gv(r, 'sotienphaithu')) },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
       {
         key: 'actions',
-        label: 'Thao tác nhanh',
+        label: 'Thao t�c nhanh',
         render: (_r, idx) => `
           <div class="table-actions">
-            <button type="button" class="table-action-btn ok" data-admin-action="dispute-no-damage" data-row="${idx}">Không hư hại</button>
-            <button type="button" class="table-action-btn danger" data-admin-action="dispute-damage" data-row="${idx}">Có hư hại</button>
+            <button type="button" class="table-action-btn ok" data-admin-action="dispute-no-damage" data-row="${idx}">Kh�ng hu h?i</button>
+            <button type="button" class="table-action-btn danger" data-admin-action="dispute-damage" data-row="${idx}">C� hu h?i</button>
           </div>
         `,
       },
@@ -508,12 +508,12 @@ async function initAdminDisputes() {
             flow = await App.requestJson('GET', `${App.getApiBase()}/api/contracts/${gv(row, 'hopdongthueid')}/money-flow`);
           }
         } catch {}
-        setInspector(`Tranh chấp ${gv(row, 'id')}`, row, arr(flow.events), arr(flow.transactions));
+        setInspector(`Tranh ch?p ${gv(row, 'id')}`, row, arr(flow.events), arr(flow.transactions));
         if ($('adminModuleActions')) {
           $('adminModuleActions').innerHTML = `
             <div class="table-actions">
-              <button id="adminNoDamageBtn" type="button" class="table-action-btn ok">Xác nhận không hư hại</button>
-              <button id="adminDamageBtn" type="button" class="table-action-btn danger">Xác nhận có hư hại</button>
+              <button id="adminNoDamageBtn" type="button" class="table-action-btn ok">X�c nh?n kh�ng hu h?i</button>
+              <button id="adminDamageBtn" type="button" class="table-action-btn danger">X�c nh?n c� hu h?i</button>
             </div>
           `;
           $('adminNoDamageBtn').onclick = async () => {
@@ -565,7 +565,7 @@ function ownerCustomerCode(value) {
   return `KH-${ownerShortId(value, 6)}`;
 }
 
-function ownerFriendlyError(error, fallback = 'Không thể xử lý yêu cầu lúc này, vui lòng thử lại.') {
+function ownerFriendlyError(error, fallback = 'Kh�ng th? x? l� y�u c?u l�c n�y, vui l�ng th? l?i.') {
   const message = String(error?.message || '').trim();
   if (!message) return fallback;
   const lowered = message.toLowerCase();
@@ -594,7 +594,7 @@ function ownerVehicleLabel(row) {
 }
 
 function ownerDetailHtml(row) {
-  if (!row) return '<div class="empty-state">Chọn một bản ghi để xem chi tiết.</div>';
+  if (!row) return '<div class="empty-state">Ch?n m?t b?n ghi d? xem chi ti?t.</div>';
   const entries = Object.entries(row).map(([k, v]) => {
     const display = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
     return `<div class="kv"><span>${App.escapeHtml(k)}</span><strong class="text-break">${App.escapeHtml(display)}</strong></div>`;
@@ -602,12 +602,12 @@ function ownerDetailHtml(row) {
   return `<div class="detail-grid">${entries}</div>`;
 }
 
-async function ownerCopy(text, success = 'Đã sao chép') {
+async function ownerCopy(text, success = '�� sao ch�p') {
   try {
     await navigator.clipboard.writeText(String(text || ''));
     App.toast(success, 'success');
   } catch {
-    App.toast('Không thể sao chép trên trình duyệt này.', 'error');
+    App.toast('Kh�ng th? sao ch�p tr�n tr�nh duy?t n�y.', 'error');
   }
 }
 
@@ -625,13 +625,13 @@ function ownerRenderQueue(targetId, items) {
 
 async function initOwnerDashboard() {
   const session = await App.guardPage({ roles: ['chuxe', 'admin'] });
-  if (session && $('welcomeUser')) $('welcomeUser').textContent = `Xin chào, ${session?.user?.hoTen || 'chủ xe'}`;
+  if (session && $('welcomeUser')) $('welcomeUser').textContent = `Xin ch�o, ${session?.user?.hoTen || 'ch? xe'}`;
   if ($('ownerQuickActions')) {
     $('ownerQuickActions').innerHTML = `
-      <a href="/owner/vehicles">Thêm xe mới</a>
-      <a href="/owner/availability">Tạo lịch trống</a>
-      <a href="/owner/contracts">Xem hợp đồng</a>
-      <a href="/owner/disputes">Báo cáo hư hại</a>
+      <a href="/owner/vehicles">Th�m xe m?i</a>
+      <a href="/owner/availability">T?o l?ch tr?ng</a>
+      <a href="/owner/contracts">Xem h?p d?ng</a>
+      <a href="/owner/disputes">B�o c�o hu h?i</a>
     `;
   }
   try {
@@ -662,39 +662,39 @@ async function initOwnerDashboard() {
     $('kpiDisputes').textContent = String(openDisputes.length);
 
     ownerRenderQueue('ownerActionQueue', [
-      { label: 'Xe chờ duyệt', value: pendingVehicles.length, hint: 'Theo dõi để đảm bảo xe sớm sẵn sàng.' },
-      { label: 'Hợp đồng đang thuê', value: activeContracts.length, hint: 'Cần giám sát tiến độ thuê và hoàn cọc.' },
-      { label: 'Tranh chấp đang mở', value: openDisputes.length, hint: 'Ưu tiên xử lý để giảm thời gian treo cọc.' },
-      { label: 'Hợp đồng chờ kiểm tra trả xe', value: waitingReturn.length, hint: 'Kiểm tra xe để hoàn tất tất toán.' },
-      { label: 'Xe chưa có lịch trống', value: noSchedule.length, hint: 'Nên tạo lịch để tăng khả năng được đặt.' },
+      { label: 'Xe ch? duy?t', value: pendingVehicles.length, hint: 'Theo d�i d? d?m b?o xe s?m s?n s�ng.' },
+      { label: 'H?p d?ng dang thu�', value: activeContracts.length, hint: 'C?n gi�m s�t ti?n d? thu� v� ho�n c?c.' },
+      { label: 'Tranh ch?p dang m?', value: openDisputes.length, hint: 'Uu ti�n x? l� d? gi?m th?i gian treo c?c.' },
+      { label: 'H?p d?ng ch? ki?m tra tr? xe', value: waitingReturn.length, hint: 'Ki?m tra xe d? ho�n t?t t?t to�n.' },
+      { label: 'Xe chua c� l?ch tr?ng', value: noSchedule.length, hint: 'N�n t?o l?ch d? tang kh? nang du?c d?t.' },
     ]);
 
     App.renderTable('ownerRecentVehicles', vehicles.slice(0, 6), [
-      { key: 'bienso', label: 'Biển số' }, { key: 'hangxe', label: 'Hãng xe' }, { key: 'dongxe', label: 'Dòng xe' }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
+      { key: 'bienso', label: 'Bi?n s?' }, { key: 'hangxe', label: 'H�ng xe' }, { key: 'dongxe', label: 'D�ng xe' }, { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
     ]);
 
     App.renderTable('ownerActiveContracts', activeContracts.slice(0, 6), [
-      { key: 'id', label: 'Mã HĐ', render: (r) => ownerContractCode(gv(r, 'id')) },
+      { key: 'id', label: 'M� H�', render: (r) => ownerContractCode(gv(r, 'id')) },
       { key: 'xeid', label: 'Xe', render: (r) => ownerShortId(gv(r, 'xeid')) },
-      { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
-      { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
+      { key: 'nguoithueid', label: 'Kh�ch thu�', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
+      { key: 'tongtiencoc', label: 'Ti?n c?c', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(contractFlowStatus(r)) },
     ]);
 
     App.renderTable('ownerRecentDisputes', disputes.slice(0, 6), [
-      { key: 'id', label: 'Mã TC', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
-      { key: 'hopdongthueid', label: 'Hợp đồng', render: (r) => ownerContractCode(gv(r, 'hopdongthueid')) },
-      { key: 'lydo', label: 'Lý do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 70) || 'Chưa cập nhật') },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'id', label: 'M� TC', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
+      { key: 'hopdongthueid', label: 'H?p d?ng', render: (r) => ownerContractCode(gv(r, 'hopdongthueid')) },
+      { key: 'lydo', label: 'L� do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 70) || 'Chua c?p nh?t') },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
     ]);
   } catch (e) {
-    ownerShowError('ownerDashboardMessage', e, 'Không thể tải dashboard chủ xe lúc này.');
+    ownerShowError('ownerDashboardMessage', e, 'Kh�ng th? t?i dashboard ch? xe l�c n�y.');
   }
 }
 
 async function initRenterDashboard() {
   const session = await App.guardPage({ roles: ['khach', 'admin'] });
-  if (session && $('welcomeUser')) $('welcomeUser').textContent = `Xin chào, ${session?.user?.hoTen || 'khách thuê'}`;
+  if (session && $('welcomeUser')) $('welcomeUser').textContent = `Xin ch�o, ${session?.user?.hoTen || 'kh�ch thu�'}`;
   try {
     const [bookings, contracts, deposits] = await Promise.all([
       App.requestJson('GET', `${App.getApiBase()}/api/renter/bookings`),
@@ -706,8 +706,8 @@ async function initRenterDashboard() {
     $('kpiDeposits').textContent = arr(deposits.items).length;
     $('kpiActive').textContent = arr(contracts.items).filter((c) => contractFlowStatus(c) === 'dangThue').length;
     App.renderTable('renterRecentBookings', arr(bookings.items).slice(0, 6), [
-      { key: 'id', label: 'Booking' }, { key: 'xeid', label: 'Xe' }, { key: 'songaythue', label: 'Số ngày' },
-      { key: 'tongtienthue', label: 'Tổng tiền', render: (r) => App.formatMoney(gv(r, 'tongtienthue')) }, { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'id', label: 'Booking' }, { key: 'xeid', label: 'Xe' }, { key: 'songaythue', label: 'S? ng�y' },
+      { key: 'tongtienthue', label: 'T?ng ti?n', render: (r) => App.formatMoney(gv(r, 'tongtienthue')) }, { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
     ]);
   } catch (e) { App.showMessage('renterDashboardMessage', e.message, 'error'); }
 }
@@ -724,18 +724,18 @@ async function initFinance() {
     $('kpiNet').textContent = App.formatMoney(summary?.totalNetPayouts ?? 0);
     $('kpiTxToday').textContent = summary?.totalTransactions ?? 0;
     $('kpiTxPending').textContent = summary?.warnings && Object.keys(summary.warnings).length ? Object.keys(summary.warnings).length : 0;
-    $('chainSyncStatus').textContent = summary?.latestBlock?.hash ? `Đồng bộ đến block #${summary.latestBlock.blockheight}` : 'Chưa có dữ liệu block';
+    $('chainSyncStatus').textContent = summary?.latestBlock?.hash ? `�?ng b? d?n block #${summary.latestBlock.blockheight}` : 'Chua c� d? li?u block';
 
     App.renderTable('financeTransactionsTable', arr(data.transactions), [
-      { key: 'txHash', label: 'Tx hash' }, { key: 'txType', label: 'Loại giao dịch' }, { key: 'amount', label: 'Số tiền', render: (r) => App.formatMoney(gv(r, 'amount')) },
-      { key: 'fromAddress', label: 'Từ' }, { key: 'toAddress', label: 'Đến' },
-      { key: 'status', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'status') || 'pending') },
-      { key: 'timestamp', label: 'Thời gian', render: (r) => App.formatDate(gv(r, 'timestamp')) },
+      { key: 'txHash', label: 'Tx hash' }, { key: 'txType', label: 'Lo?i giao d?ch' }, { key: 'amount', label: 'S? ti?n', render: (r) => App.formatMoney(gv(r, 'amount')) },
+      { key: 'fromAddress', label: 'T?' }, { key: 'toAddress', label: '�?n' },
+      { key: 'status', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'status') || 'pending') },
+      { key: 'timestamp', label: 'Th?i gian', render: (r) => App.formatDate(gv(r, 'timestamp')) },
     ], { onRowClick: async (row) => {
       setDetail('financeTxDetail', row);
       let flow = { events: [], transactions: [] };
       if (gv(row, 'contractId')) { try { flow = await App.requestJson('GET', `${App.getApiBase()}/api/contracts/${gv(row, 'contractId')}/money-flow`); } catch {} }
-      setInspector(`Giao dịch ${gv(row, 'txHash')}`, row, arr(flow.events), arr(flow.transactions));
+      setInspector(`Giao d?ch ${gv(row, 'txHash')}`, row, arr(flow.events), arr(flow.transactions));
     }});
   };
 
@@ -746,9 +746,9 @@ async function initFinance() {
       ['walletAddress', 'txType', 'contractId', 'disputeId'].forEach((id) => { const v = $(id)?.value?.trim(); if (v) q.set(id, v); });
       const data = await App.requestJson('GET', `${App.getApiBase()}/api/finance/transactions${q.toString() ? '?' + q.toString() : ''}`);
       App.renderTable('financeTransactionsTable', arr(data.transactions), [
-        { key: 'txHash', label: 'Tx hash' }, { key: 'txType', label: 'Loại giao dịch' }, { key: 'amount', label: 'Số tiền', render: (r) => App.formatMoney(gv(r, 'amount')) },
-        { key: 'fromAddress', label: 'Từ' }, { key: 'toAddress', label: 'Đến' }, { key: 'status', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'status') || 'pending') },
-      ], { onRowClick: (row) => { setDetail('financeTxDetail', row); setInspector(`Giao dịch ${gv(row, 'txHash')}`, row); } });
+        { key: 'txHash', label: 'Tx hash' }, { key: 'txType', label: 'Lo?i giao d?ch' }, { key: 'amount', label: 'S? ti?n', render: (r) => App.formatMoney(gv(r, 'amount')) },
+        { key: 'fromAddress', label: 'T?' }, { key: 'toAddress', label: '�?n' }, { key: 'status', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'status') || 'pending') },
+      ], { onRowClick: (row) => { setDetail('financeTxDetail', row); setInspector(`Giao d?ch ${gv(row, 'txHash')}`, row); } });
     } catch (er) { App.showMessage('financeMessage', er.message, 'error'); }
   });
 
@@ -760,7 +760,7 @@ async function initChain() {
   try {
     const chain = await App.requestJson('GET', `${App.getApiBase()}/api/node/chain`);
     if ($('chainJson')) $('chainJson').textContent = j(chain);
-    setInspector('Dữ liệu chuỗi', chain);
+    setInspector('D? li?u chu?i', chain);
   } catch (e) { App.showMessage('chainMessage', e.message, 'error'); }
 }
 
@@ -802,15 +802,15 @@ async function initOwnerVehiclesSimple() {
     applyFilter();
     ownerTogglePanel('ownerVehiclesEmpty', rowsState.filtered.length === 0);
     App.renderTable('ownerVehiclesTable', rowsState.filtered, [
-      { key: 'bienso', label: 'Biển số' },
-      { key: 'hangxe', label: 'Hãng xe' },
-      { key: 'dongxe', label: 'Dòng xe' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
-      { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
-      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+      { key: 'bienso', label: 'Bi?n s?' },
+      { key: 'hangxe', label: 'H�ng xe' },
+      { key: 'dongxe', label: 'D�ng xe' },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) },
+      { key: 'giatheongay', label: 'Gi�/ng�y', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
+      { key: 'actions', label: 'Thao t�c', render: (_r, idx) => `
         <div class="table-actions">
-          <button type="button" class="table-action-btn" data-owner-vehicle-action="view" data-row="${idx}">Chi tiết</button>
-          <button type="button" class="table-action-btn pending" data-owner-vehicle-action="schedule" data-row="${idx}">Lịch trống</button>
+          <button type="button" class="table-action-btn" data-owner-vehicle-action="view" data-row="${idx}">Chi ti?t</button>
+          <button type="button" class="table-action-btn pending" data-owner-vehicle-action="schedule" data-row="${idx}">L?ch tr?ng</button>
           <button type="button" class="table-action-btn ok" data-owner-vehicle-action="copy" data-row="${idx}">Copy ID</button>
         </div>
       ` },
@@ -845,13 +845,13 @@ async function initOwnerVehiclesSimple() {
       if ($('ownerVehicleDetail')) $('ownerVehicleDetail').innerHTML = ownerDetailHtml(row);
     }
     if (action === 'schedule') window.location.href = `/owner/availability?xeId=${encodeURIComponent(gv(row, 'id'))}`;
-    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã xe.');
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), '�� sao ch�p m� xe.');
   });
 
   try {
     await load();
   } catch (e) {
-    ownerShowError('ownerVehicleMessage', e, 'Không thể tải danh sách xe lúc này.');
+    ownerShowError('ownerVehicleMessage', e, 'Kh�ng th? t?i danh s�ch xe l�c n�y.');
   }
 
   form?.addEventListener('submit', async (e) => {
@@ -859,15 +859,15 @@ async function initOwnerVehiclesSimple() {
     const btn = form.querySelector('button[type="submit"]');
     try {
       App.setLoading(btn, true);
-      const dailyPrice = Number(App.requireValue($('giaTheoNgay')?.value, 'Thiếu giá theo ngày'));
-      if (!Number.isFinite(dailyPrice)) throw new Error('Giá theo ngày không hợp lệ.');
-      if (dailyPrice < 10000) throw new Error('Giá theo ngày tối thiểu là 10.000.');
-      if (dailyPrice % 10000 !== 0) throw new Error('Giá theo ngày phải tăng theo bước 10.000.');
+      const dailyPrice = Number(App.requireValue($('giaTheoNgay')?.value, 'Thi?u gi� theo ng�y'));
+      if (!Number.isFinite(dailyPrice)) throw new Error('Gi� theo ng�y kh�ng h?p l?.');
+      if (dailyPrice < 10000) throw new Error('Gi� theo ng�y t?i thi?u l� 10.000.');
+      if (dailyPrice % 10000 !== 0) throw new Error('Gi� theo ng�y ph?i tang theo bu?c 10.000.');
       await App.requestJson('POST', `${App.getApiBase()}/api/vehicles`, {
-        bienSo: App.requireValue($('bienSo')?.value, 'Thiếu biển số'),
-        hangXe: App.requireValue($('hangXe')?.value, 'Thiếu hãng xe'),
-        dongXe: App.requireValue($('dongXe')?.value, 'Thiếu dòng xe'),
-        loaiXe: App.requireValue($('loaiXe')?.value, 'Thiếu loại xe'),
+        bienSo: App.requireValue($('bienSo')?.value, 'Thi?u bi?n s?'),
+        hangXe: App.requireValue($('hangXe')?.value, 'Thi?u h�ng xe'),
+        dongXe: App.requireValue($('dongXe')?.value, 'Thi?u d�ng xe'),
+        loaiXe: App.requireValue($('loaiXe')?.value, 'Thi?u lo?i xe'),
         namSanXuat: $('namSanXuat')?.value ? Number($('namSanXuat')?.value) : null,
         moTa: $('moTa')?.value?.trim() || null,
         giaTheoNgay: dailyPrice,
@@ -877,12 +877,12 @@ async function initOwnerVehiclesSimple() {
         dangKyXe: $('dangKyXe')?.value?.trim() || null,
         ngayHetHanDangKiem: $('ngayHetHanDangKiem')?.value || null,
       });
-      App.showMessage('ownerVehicleMessage', 'Đã lưu xe thành công.', 'success');
+      App.showMessage('ownerVehicleMessage', '�� luu xe th�nh c�ng.', 'success');
       form.reset();
       ownerTogglePanel(formPanelId, false);
       await load();
     } catch (er) {
-      ownerShowError('ownerVehicleMessage', er, 'Không thể lưu xe lúc này, vui lòng thử lại.');
+      ownerShowError('ownerVehicleMessage', er, 'Kh�ng th? luu xe l�c n�y, vui l�ng th? l?i.');
     } finally {
       App.setLoading(btn, false);
     }
@@ -914,13 +914,13 @@ async function initOwnerAvailabilitySimple() {
     ownerTogglePanel('ownerAvailabilityEmpty', state.filtered.length === 0);
     App.renderTable('ownerAvailabilityTable', state.filtered, [
       { key: 'xeid', label: 'Xe', render: (r) => App.escapeHtml(vehicleMap.get(gv(r, 'xeid')) || ownerShortId(gv(r, 'xeid'))) },
-      { key: 'ngaybatdau', label: 'Bắt đầu', render: (r) => App.formatDate(gv(r, 'ngaybatdau')) },
-      { key: 'ngayketthuc', label: 'Kết thúc', render: (r) => App.formatDate(gv(r, 'ngayketthuc')) },
-      { key: 'controng', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'controng') ? 'Còn trống' : 'Không trống') },
-      { key: 'ghichu', label: 'Ghi chú', render: (r) => App.escapeHtml(gv(r, 'ghichu') || '—') },
-      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+      { key: 'ngaybatdau', label: 'B?t d?u', render: (r) => App.formatDate(gv(r, 'ngaybatdau')) },
+      { key: 'ngayketthuc', label: 'K?t th�c', render: (r) => App.formatDate(gv(r, 'ngayketthuc')) },
+      { key: 'controng', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'controng') ? 'C�n tr?ng' : 'Kh�ng tr?ng') },
+      { key: 'ghichu', label: 'Ghi ch�', render: (r) => App.escapeHtml(gv(r, 'ghichu') || '�') },
+      { key: 'actions', label: 'Thao t�c', render: (_r, idx) => `
         <div class="table-actions">
-          <button type="button" class="table-action-btn" data-owner-slot-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn" data-owner-slot-action="view" data-row="${idx}">Chi ti?t</button>
           <button type="button" class="table-action-btn ok" data-owner-slot-action="copy" data-row="${idx}">Copy ID</button>
         </div>
       ` },
@@ -964,13 +964,13 @@ async function initOwnerAvailabilitySimple() {
       ownerTogglePanel(detailPanelId, true);
       if ($('ownerAvailabilityDetail')) $('ownerAvailabilityDetail').innerHTML = ownerDetailHtml(row);
     }
-    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã lịch trống.');
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), '�� sao ch�p m� l?ch tr?ng.');
   });
 
   try {
     await load();
   } catch (e) {
-    ownerShowError('ownerAvailabilityMessage', e, 'Không thể tải lịch trống lúc này.');
+    ownerShowError('ownerAvailabilityMessage', e, 'Kh�ng th? t?i l?ch tr?ng l�c n�y.');
   }
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -978,18 +978,18 @@ async function initOwnerAvailabilitySimple() {
     try {
       App.setLoading(btn, true);
       await App.requestJson('POST', `${App.getApiBase()}/api/owner/availability`, {
-        xeId: App.requireValue($('xeId')?.value, 'Chưa chọn xe'),
-        ngayBatDau: App.requireValue($('ngayBatDau')?.value, 'Thiếu ngày bắt đầu'),
-        ngayKetThuc: App.requireValue($('ngayKetThuc')?.value, 'Thiếu ngày kết thúc'),
+        xeId: App.requireValue($('xeId')?.value, 'Chua ch?n xe'),
+        ngayBatDau: App.requireValue($('ngayBatDau')?.value, 'Thi?u ng�y b?t d?u'),
+        ngayKetThuc: App.requireValue($('ngayKetThuc')?.value, 'Thi?u ng�y k?t th�c'),
         conTrong: $('conTrong')?.value !== 'false',
         ghiChu: $('ghiChu')?.value?.trim() || null,
       });
-      App.showMessage('ownerAvailabilityMessage', 'Đã lưu lịch trống.', 'success');
+      App.showMessage('ownerAvailabilityMessage', '�� luu l?ch tr?ng.', 'success');
       form.reset();
       ownerTogglePanel(formPanelId, false);
       await load();
     } catch (er) {
-      ownerShowError('ownerAvailabilityMessage', er, 'Không thể lưu lịch trống lúc này, vui lòng thử lại.');
+      ownerShowError('ownerAvailabilityMessage', er, 'Kh�ng th? luu l?ch tr?ng l�c n�y, vui l�ng th? l?i.');
     } finally {
       App.setLoading(btn, false);
     }
@@ -1017,12 +1017,12 @@ async function initOwnerContractsSimple() {
     if (!$('ownerContractDetail')) return;
     $('ownerContractDetail').innerHTML = `
       <div class="detail-grid">
-        <div class="kv"><span>Mã hợp đồng</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
+        <div class="kv"><span>M� h?p d?ng</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
         <div class="kv"><span>Xe</span><strong>${App.escapeHtml(vehicleMap.get(gv(row, 'xeid')) || gv(row, 'xeid'))}</strong></div>
-        <div class="kv"><span>Mã khách thuê</span><strong>${App.escapeHtml(gv(row, 'nguoithueid'))}</strong></div>
-        <div class="kv"><span>Tiền cọc</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'tongtiencoc') || 0))}</strong></div>
-        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(contractFlowStatus(row) || ''))}</strong></div>
-        <div class="kv"><span>Tạo lúc</span><strong>${App.escapeHtml(App.formatDate(gv(row, 'taoluc')) || 'Chưa cập nhật')}</strong></div>
+        <div class="kv"><span>M� kh�ch thu�</span><strong>${App.escapeHtml(gv(row, 'nguoithueid'))}</strong></div>
+        <div class="kv"><span>Ti?n c?c</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'tongtiencoc') || 0))}</strong></div>
+        <div class="kv"><span>Tr?ng th�i</span><strong>${App.escapeHtml(String(contractFlowStatus(row) || ''))}</strong></div>
+        <div class="kv"><span>T?o l�c</span><strong>${App.escapeHtml(App.formatDate(gv(row, 'taoluc')) || 'Chua c?p nh?t')}</strong></div>
       </div>
       <div class="table-actions" style="margin-top:10px">
         <button type="button" class="table-action-btn ok" data-owner-copy-contract="${App.escapeHtml(gv(row, 'id'))}">Copy Contract ID</button>
@@ -1035,15 +1035,15 @@ async function initOwnerContractsSimple() {
     applyFilter();
     ownerTogglePanel('ownerContractsEmpty', state.filtered.length === 0);
     App.renderTable('ownerContractsTable', state.filtered, [
-      { key: 'id', label: 'Mã hợp đồng', render: (r) => ownerContractCode(gv(r, 'id')) },
+      { key: 'id', label: 'M� h?p d?ng', render: (r) => ownerContractCode(gv(r, 'id')) },
       { key: 'xeid', label: 'Xe', render: (r) => App.escapeHtml(vehicleMap.get(gv(r, 'xeid')) || ownerShortId(gv(r, 'xeid'))) },
-      { key: 'nguoithueid', label: 'Khách thuê', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
-      { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
-      { key: 'taoluc', label: 'Ngày tạo', render: (r) => App.formatDate(gv(r, 'taoluc')) || '—' },
-      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+      { key: 'nguoithueid', label: 'Kh�ch thu�', render: (r) => ownerCustomerCode(gv(r, 'nguoithueid')) },
+      { key: 'tongtiencoc', label: 'Ti?n c?c', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(contractFlowStatus(r)) },
+      { key: 'taoluc', label: 'Ng�y t?o', render: (r) => App.formatDate(gv(r, 'taoluc')) || '�' },
+      { key: 'actions', label: 'Thao t�c', render: (_r, idx) => `
         <div class="table-actions">
-          <button type="button" class="table-action-btn" data-owner-contract-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn" data-owner-contract-action="view" data-row="${idx}">Chi ti?t</button>
           <button type="button" class="table-action-btn ok" data-owner-contract-action="copy" data-row="${idx}">Copy ID</button>
         </div>
       ` },
@@ -1059,8 +1059,8 @@ async function initOwnerContractsSimple() {
     arr(vehicles.items).forEach((v) => vehicleMap.set(gv(v, 'id'), ownerVehicleLabel(v)));
     state.all = arr(contracts.items);
     const label = (c) => `${ownerContractCode(gv(c, 'id'))} - ${contractFlowStatus(c)}`;
-    App.renderSelect('ownerHandoverContractId', state.all, 'id', label, 'Chọn hợp đồng');
-    App.renderSelect('ownerReturnContractId', state.all, 'id', label, 'Chọn hợp đồng');
+    App.renderSelect('ownerHandoverContractId', state.all, 'id', label, 'Ch?n h?p d?ng');
+    App.renderSelect('ownerReturnContractId', state.all, 'id', label, 'Ch?n h?p d?ng');
     render();
   };
 
@@ -1074,19 +1074,19 @@ async function initOwnerContractsSimple() {
     const row = state.filtered[Number(btn.getAttribute('data-row') || -1)];
     if (!row) return;
     if (btn.getAttribute('data-owner-contract-action') === 'view') renderDetail(row);
-    if (btn.getAttribute('data-owner-contract-action') === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã hợp đồng.');
+    if (btn.getAttribute('data-owner-contract-action') === 'copy') await ownerCopy(gv(row, 'id'), '�� sao ch�p m� h?p d?ng.');
   });
   $('ownerContractDetailPanel')?.addEventListener('click', async (e) => {
     const contractBtn = e.target.closest('[data-owner-copy-contract]');
-    if (contractBtn) return ownerCopy(contractBtn.getAttribute('data-owner-copy-contract'), 'Đã sao chép Contract ID.');
+    if (contractBtn) return ownerCopy(contractBtn.getAttribute('data-owner-copy-contract'), '�� sao ch�p Contract ID.');
     const vehicleBtn = e.target.closest('[data-owner-copy-vehicle]');
-    if (vehicleBtn) return ownerCopy(vehicleBtn.getAttribute('data-owner-copy-vehicle'), 'Đã sao chép Vehicle ID.');
+    if (vehicleBtn) return ownerCopy(vehicleBtn.getAttribute('data-owner-copy-vehicle'), '�� sao ch�p Vehicle ID.');
   });
 
   try {
     await load();
   } catch (e) {
-    ownerShowError('ownerContractsMessage', e, 'Không thể tải danh sách hợp đồng lúc này.');
+    ownerShowError('ownerContractsMessage', e, 'Kh�ng th? t?i danh s�ch h?p d?ng l�c n�y.');
   }
 
   $('ownerConfirmHandoverForm')?.addEventListener('submit', async (e) => {
@@ -1094,16 +1094,16 @@ async function initOwnerContractsSimple() {
     const btn = e.submitter || $('ownerConfirmHandoverForm')?.querySelector('button[type="submit"]');
     try {
       App.setLoading(btn, true);
-      const id = App.requireValue($('ownerHandoverContractId')?.value, 'Chưa chọn hợp đồng');
+      const id = App.requireValue($('ownerHandoverContractId')?.value, 'Chua ch?n h?p d?ng');
       const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/owner-confirm-handover`, {
-        ghiChu: App.requireValue($('ownerHandoverNote')?.value, 'Thiếu ghi chú giao xe'),
+        ghiChu: App.requireValue($('ownerHandoverNote')?.value, 'Thi?u ghi ch� giao xe'),
         evidenceUrls: [],
       }, '', stepUpHeaders);
-      App.showMessage('ownerContractsMessage', 'Đã xác nhận giao xe.', 'success');
+      App.showMessage('ownerContractsMessage', '�� x�c nh?n giao xe.', 'success');
       await load();
     } catch (er) {
-      ownerShowError('ownerContractsMessage', er, 'Không thể xác nhận giao xe lúc này.');
+      ownerShowError('ownerContractsMessage', er, 'Kh�ng th? x�c nh?n giao xe l�c n�y.');
     } finally {
       App.setLoading(btn, false);
     }
@@ -1114,16 +1114,16 @@ async function initOwnerContractsSimple() {
     const btn = e.submitter || $('ownerConfirmReturnForm')?.querySelector('button[type="submit"]');
     try {
       App.setLoading(btn, true);
-      const id = App.requireValue($('ownerReturnContractId')?.value, 'Chưa chọn hợp đồng');
+      const id = App.requireValue($('ownerReturnContractId')?.value, 'Chua ch?n h?p d?ng');
       const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/owner-confirm-return`, {
-        ghiChu: App.requireValue($('ownerReturnNote')?.value, 'Thiếu ghi chú nhận lại xe'),
+        ghiChu: App.requireValue($('ownerReturnNote')?.value, 'Thi?u ghi ch� nh?n l?i xe'),
         evidenceUrls: [],
       }, '', stepUpHeaders);
-      App.showMessage('ownerContractsMessage', 'Đã xác nhận nhận lại xe.', 'success');
+      App.showMessage('ownerContractsMessage', '�� x�c nh?n nh?n l?i xe.', 'success');
       await load();
     } catch (er) {
-      ownerShowError('ownerContractsMessage', er, 'Không thể xác nhận nhận lại xe lúc này.');
+      ownerShowError('ownerContractsMessage', er, 'Kh�ng th? x�c nh?n nh?n l?i xe l�c n�y.');
     } finally {
       App.setLoading(btn, false);
     }
@@ -1161,11 +1161,11 @@ async function initOwnerDisputesSimple() {
     if (!$('ownerDisputeDetail')) return;
     $('ownerDisputeDetail').innerHTML = `
       <div class="detail-grid">
-        <div class="kv"><span>Mã tranh chấp</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
-        <div class="kv"><span>Hợp đồng</span><strong>${App.escapeHtml(contractMap.get(gv(row, 'hopdongthueid')) || gv(row, 'hopdongthueid'))}</strong></div>
-        <div class="kv"><span>Lý do</span><strong class="text-break">${App.escapeHtml(gv(row, 'lydo') || 'Chưa cập nhật')}</strong></div>
-        <div class="kv"><span>Chi phí</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'sotienphaithu') || gv(row, 'estimatedcost') || 0))}</strong></div>
-        <div class="kv"><span>Trạng thái</span><strong>${App.escapeHtml(String(gv(row, 'trangthai') || ''))}</strong></div>
+        <div class="kv"><span>M� tranh ch?p</span><strong>${App.escapeHtml(gv(row, 'id'))}</strong></div>
+        <div class="kv"><span>H?p d?ng</span><strong>${App.escapeHtml(contractMap.get(gv(row, 'hopdongthueid')) || gv(row, 'hopdongthueid'))}</strong></div>
+        <div class="kv"><span>L� do</span><strong class="text-break">${App.escapeHtml(gv(row, 'lydo') || 'Chua c?p nh?t')}</strong></div>
+        <div class="kv"><span>Chi ph�</span><strong>${App.escapeHtml(App.formatMoney(gv(row, 'sotienphaithu') || gv(row, 'estimatedcost') || 0))}</strong></div>
+        <div class="kv"><span>Tr?ng th�i</span><strong>${App.escapeHtml(String(gv(row, 'trangthai') || ''))}</strong></div>
       </div>
     `;
   };
@@ -1174,13 +1174,13 @@ async function initOwnerDisputesSimple() {
     applyFilter();
     ownerTogglePanel('ownerDisputesEmpty', state.filtered.length === 0);
     App.renderTable('ownerDisputesTable', state.filtered, [
-      { key: 'id', label: 'Mã tranh chấp', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
-      { key: 'hopdongthueid', label: 'Hợp đồng', render: (r) => App.escapeHtml(contractMap.get(gv(r, 'hopdongthueid')) || ownerContractCode(gv(r, 'hopdongthueid'))) },
-      { key: 'lydo', label: 'Lý do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 90) || 'Chưa cập nhật') },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
-      { key: 'actions', label: 'Thao tác', render: (_r, idx) => `
+      { key: 'id', label: 'M� tranh ch?p', render: (r) => `TC-${ownerShortId(gv(r, 'id'))}` },
+      { key: 'hopdongthueid', label: 'H?p d?ng', render: (r) => App.escapeHtml(contractMap.get(gv(r, 'hopdongthueid')) || ownerContractCode(gv(r, 'hopdongthueid'))) },
+      { key: 'lydo', label: 'L� do', render: (r) => App.escapeHtml(String(gv(r, 'lydo') || '').slice(0, 90) || 'Chua c?p nh?t') },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'actions', label: 'Thao t�c', render: (_r, idx) => `
         <div class="table-actions">
-          <button type="button" class="table-action-btn" data-owner-dispute-action="view" data-row="${idx}">Chi tiết</button>
+          <button type="button" class="table-action-btn" data-owner-dispute-action="view" data-row="${idx}">Chi ti?t</button>
           <button type="button" class="table-action-btn ok" data-owner-dispute-action="copy" data-row="${idx}">Copy ID</button>
         </div>
       ` },
@@ -1194,7 +1194,7 @@ async function initOwnerDisputesSimple() {
     ]);
     contractMap.clear();
     arr(contracts.items).forEach((c) => contractMap.set(gv(c, 'id'), contractLabel(c)));
-    App.renderSelect('contractId', arr(contracts.items), 'id', contractLabel, 'Chọn hợp đồng');
+    App.renderSelect('contractId', arr(contracts.items), 'id', contractLabel, 'Ch?n h?p d?ng');
     state.all = arr(disputes.items);
     render();
   };
@@ -1212,13 +1212,13 @@ async function initOwnerDisputesSimple() {
     if (!row) return;
     const action = btn.getAttribute('data-owner-dispute-action');
     if (action === 'view') renderDetail(row);
-    if (action === 'copy') await ownerCopy(gv(row, 'id'), 'Đã sao chép mã tranh chấp.');
+    if (action === 'copy') await ownerCopy(gv(row, 'id'), '�� sao ch�p m� tranh ch?p.');
   });
 
   try {
     await load();
   } catch (e) {
-    ownerShowError('ownerDisputesMessage', e, 'Không thể tải danh sách tranh chấp lúc này.');
+    ownerShowError('ownerDisputesMessage', e, 'Kh�ng th? t?i danh s�ch tranh ch?p l�c n�y.');
   }
 
   form?.addEventListener('submit', async (e) => {
@@ -1226,21 +1226,21 @@ async function initOwnerDisputesSimple() {
     const btn = form.querySelector('button[type="submit"]');
     try {
       App.setLoading(btn, true);
-      const contractId = App.requireValue($('contractId')?.value, 'Chưa chọn hợp đồng');
+      const contractId = App.requireValue($('contractId')?.value, 'Chua ch?n h?p d?ng');
       const evidenceUrls = ($('evidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
       const stepUpHeaders = await requireStepUpChallengeHeader();
       await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${contractId}/damage-claim`, {
-        lyDo: App.requireValue($('lyDo')?.value, 'Thiếu lý do'),
+        lyDo: App.requireValue($('lyDo')?.value, 'Thi?u l� do'),
         estimatedCost: Number($('estimatedCost')?.value || 0),
         evidenceUrls,
         ghiChu: $('ownerGhiChu')?.value?.trim() || null,
       }, '', stepUpHeaders);
-      App.showMessage('ownerDisputesMessage', 'Đã gửi báo cáo hư hại.', 'success');
+      App.showMessage('ownerDisputesMessage', '�� g?i b�o c�o hu h?i.', 'success');
       form.reset();
       ownerTogglePanel(formPanelId, false);
       await load();
     } catch (er) {
-      ownerShowError('ownerDisputesMessage', er, 'Không thể gửi báo cáo lúc này, vui lòng thử lại.');
+      ownerShowError('ownerDisputesMessage', er, 'Kh�ng th? g?i b�o c�o l�c n�y, vui l�ng th? l?i.');
     } finally {
       App.setLoading(btn, false);
     }
@@ -1267,11 +1267,11 @@ async function initRenterVehiclesSimple() {
     const bookableVehicles = arr(data.items).filter((x) => vehicleCanBook(x));
     App.renderSelect('xeId', bookableVehicles, 'id', (v) => `${gv(v, 'bienso')} - ${gv(v, 'hangxe')} ${gv(v, 'dongxe')}`);
     App.renderTable('renterVehiclesTable', arr(data.items), [
-      { key: 'bienso', label: 'Biển số' }, { key: 'hangxe', label: 'Hãng xe' }, { key: 'dongxe', label: 'Dòng xe' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) }, { key: 'giatheongay', label: 'Giá/ngày', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
+      { key: 'bienso', label: 'Bi?n s?' }, { key: 'hangxe', label: 'H�ng xe' }, { key: 'dongxe', label: 'D�ng xe' },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(vehicleDisplayStatus(r)) }, { key: 'giatheongay', label: 'Gi�/ng�y', render: (r) => App.formatMoney(gv(r, 'giatheongay')) },
     ]);
     if (!bookableVehicles.length) {
-      App.showMessage('renterVehiclesMessage', 'Hiện chưa có xe ở trạng thái Sẵn sàng để đặt.', 'info');
+      App.showMessage('renterVehiclesMessage', 'Hi?n chua c� xe ? tr?ng th�i S?n s�ng d? d?t.', 'info');
     }
   };
   try {
@@ -1284,20 +1284,20 @@ async function initRenterVehiclesSimple() {
     try {
       App.setLoading(btn, true);
       recalc();
-      const xeId = App.requireValue($('xeId')?.value, 'Chưa chọn xe');
+      const xeId = App.requireValue($('xeId')?.value, 'Chua ch?n xe');
       const selectedVehicle = map.get(xeId);
-      if (!vehicleCanBook(selectedVehicle)) throw new Error('Xe đang chờ hoặc đang cho thuê, không thể đặt.');
+      if (!vehicleCanBook(selectedVehicle)) throw new Error('Xe dang ch? ho?c dang cho thu�, kh�ng th? d?t.');
       const res = await App.requestJson('POST', `${App.getApiBase()}/api/bookings`, {
         xeId,
-        ngayBatDau: App.requireValue($('ngayBatDau')?.value, 'Thiếu ngày bắt đầu'),
-        ngayKetThuc: App.requireValue($('ngayKetThuc')?.value, 'Thiếu ngày kết thúc'),
+        ngayBatDau: App.requireValue($('ngayBatDau')?.value, 'Thi?u ng�y b?t d?u'),
+        ngayKetThuc: App.requireValue($('ngayKetThuc')?.value, 'Thi?u ng�y k?t th�c'),
         soNgayThue: Number($('soNgayThue')?.value || 1),
         tongTienThue: Number($('tongTienThue')?.value || 0),
-        diaDiemNhan: App.requireValue($('diaDiemNhan')?.value, 'Thiếu địa điểm nhận'),
+        diaDiemNhan: App.requireValue($('diaDiemNhan')?.value, 'Thi?u d?a di?m nh?n'),
         ghiChu: $('bookingGhiChu')?.value?.trim() || null,
       });
       const contractId = res?.hopDongThue?.id || '';
-      App.showMessage('renterVehiclesMessage', contractId ? `Đặt xe thành công, hợp đồng đã được tạo tự động (${contractId}).` : 'Đặt xe thành công, hợp đồng đã được tạo tự động.', 'success');
+      App.showMessage('renterVehiclesMessage', contractId ? `�?t xe th�nh c�ng, h?p d?ng d� du?c t?o t? d?ng (${contractId}).` : '�?t xe th�nh c�ng, h?p d?ng d� du?c t?o t? d?ng.', 'success');
       form.reset();
       await load();
     } catch (er) { App.showMessage('renterVehiclesMessage', er.message, 'error'); }
@@ -1305,15 +1305,104 @@ async function initRenterVehiclesSimple() {
   });
 }
 
+async function initOwnerBookingsSimple() {
+  await App.guardPage({ roles: ['chuxe', 'admin'] });
+  const root = $('ownerBookingsTable');
+  const render = (items) => {
+    const list = arr(items);
+    if (!root) return;
+    if (!list.length) {
+      root.innerHTML = '<div class="empty-state">Chua c� booking n�o c?n x? l�.</div>';
+      return;
+    }
+    root.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Kh�ch</th>
+            <th>�i?m uy t�n</th>
+            <th>Xe</th>
+            <th>Ng�y t?o</th>
+            <th>H?n duy?t</th>
+            <th>Countdown</th>
+            <th>Mode auto</th>
+            <th>Tr?ng th�i</th>
+            <th>Thao t�c</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((item, index) => `
+            <tr data-index="${index}">
+              <td>${App.escapeHtml(bookingRenterName(item))}</td>
+              <td>${App.escapeHtml(String(gv(item?.renter || {}, 'diemUyTinSnapshot') || gv(item, 'diemuytinlucdat') || 0))}</td>
+              <td>${App.escapeHtml(bookingVehicleLabel(item))}</td>
+              <td>${App.escapeHtml(App.formatDate(gv(item, 'taoluc')))}</td>
+              <td>${App.escapeHtml(App.formatDate(gv(item, 'hanDuyetLuc') || gv(item, 'handuyetluc')))}</td>
+              <td>${App.escapeHtml(bookingCountdownLabel(item))}</td>
+              <td>${App.escapeHtml(bookingModeLabel(gv(item, 'autoDecisionMode') || gv(item, 'chedotudong')))}</td>
+              <td>${App.statusBadge(gv(item, 'decisionOutcomeLabel') || gv(item, 'trangthai'))}</td>
+              <td>
+                <div class="cta-row">
+                  <button type="button" class="approve-booking-btn" data-id="${App.escapeHtml(gv(item, 'id'))}" ${gv(item, 'ownerActionAllowed') ? '' : 'disabled'}>Duy?t</button>
+                  <button type="button" class="reject-booking-btn" data-id="${App.escapeHtml(gv(item, 'id'))}" ${gv(item, 'ownerActionAllowed') ? '' : 'disabled'}>T? ch?i</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    root.querySelectorAll('.approve-booking-btn').forEach((btn) => btn.addEventListener('click', async () => {
+      try {
+        App.setLoading(btn, true);
+        await App.requestJson('POST', `${App.getApiBase()}/api/bookings/${btn.dataset.id}/approve`, {});
+        App.showMessage('ownerBookingsMessage', '�� duy?t booking v� t?o h?p d?ng/ti?n c?c.', 'success');
+        await load();
+      } catch (error) {
+        App.showMessage('ownerBookingsMessage', error.message, 'error');
+      } finally {
+        App.setLoading(btn, false);
+      }
+    }));
+    root.querySelectorAll('.reject-booking-btn').forEach((btn) => btn.addEventListener('click', async () => {
+      const lyDo = window.prompt('Nh?p l� do t? ch?i booking:', 'Ch? xe t? ch?i booking');
+      if (!lyDo || !lyDo.trim()) return;
+      try {
+        App.setLoading(btn, true);
+        await App.requestJson('POST', `${App.getApiBase()}/api/bookings/${btn.dataset.id}/reject`, { lyDo: lyDo.trim() });
+        App.showMessage('ownerBookingsMessage', '�� t? ch?i booking.', 'success');
+        await load();
+      } catch (error) {
+        App.showMessage('ownerBookingsMessage', error.message, 'error');
+      } finally {
+        App.setLoading(btn, false);
+      }
+    }));
+  };
+  const load = async () => {
+    const data = await App.requestJson('GET', `${App.getApiBase()}/api/owner/bookings`);
+    render(data.items);
+  };
+  try {
+    await load();
+  } catch (e) {
+    App.showMessage('ownerBookingsMessage', e.message, 'error');
+  }
+}
+
 async function initRenterBookingsSimple() {
   await App.guardPage({ roles: ['khach', 'admin'] });
   try {
     const data = await App.requestJson('GET', `${App.getApiBase()}/api/renter/bookings`);
     App.renderTable('renterBookingsTable', arr(data.items), [
-      { key: 'id', label: 'Booking' }, { key: 'xeid', label: 'Xe' }, { key: 'songaythue', label: 'Số ngày' },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'id', label: 'Booking' },
+      { key: 'vehicle', label: 'Xe', render: (r) => App.escapeHtml(bookingVehicleLabel(r)) },
+      { key: 'songaythue', label: 'S? ng�y' },
+      { key: 'autoDecisionMode', label: 'Mode auto', render: (r) => App.escapeHtml(bookingModeLabel(gv(r, 'autoDecisionMode') || gv(r, 'chedotudong'))) },
+      { key: 'remainingSeconds', label: 'Th?i gian c�n l?i', render: (r) => App.escapeHtml(bookingCountdownLabel(r)) },
+      { key: 'decisionOutcomeLabel', label: 'K?t qu?', render: (r) => App.statusBadge(gv(r, 'decisionOutcomeLabel') || gv(r, 'trangthai')) },
     ]);
-    App.showMessage('renterBookingsMessage', 'Hợp đồng được tạo tự động ngay khi đặt xe thành công.', 'info');
+    App.showMessage('renterBookingsMessage', 'Booking s? ch? ch? xe duy?t. H?p d?ng v� ti?n c?c ch? du?c t?o sau khi booking du?c duy?t.', 'info');
   } catch (e) { App.showMessage('renterBookingsMessage', e.message, 'error'); }
 }
 
@@ -1330,8 +1419,8 @@ async function initRenterContractsSimple() {
     App.renderSelect('returnContractId', arr(data.items), 'id', label);
     App.renderSelect('settleContractId', arr(data.items), 'id', label);
     App.renderTable('renterContractsTable', arr(data.items), [
-      { key: 'id', label: 'Hợp đồng' }, { key: 'xeid', label: 'Xe' }, { key: 'tongtiencoc', label: 'Tiền cọc', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(contractFlowStatus(r)) },
+      { key: 'id', label: 'H?p d?ng' }, { key: 'xeid', label: 'Xe' }, { key: 'tongtiencoc', label: 'Ti?n c?c', render: (r) => App.formatMoney(gv(r, 'tongtiencoc')) },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(contractFlowStatus(r)) },
     ]);
   };
   const syncSettle = () => {
@@ -1348,30 +1437,30 @@ async function initRenterContractsSimple() {
   $('lockDepositBtn')?.addEventListener('click', async () => {
     try {
       const stepUpHeaders = await requireStepUpChallengeHeader();
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('lockContractId')?.value, 'Chưa chọn hợp đồng')}/lock-deposit`, {}, '', stepUpHeaders);
-      App.showMessage('renterContractsMessage', 'Đã khóa cọc.', 'success');
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('lockContractId')?.value, 'Chua ch?n h?p d?ng')}/lock-deposit`, {}, '', stepUpHeaders);
+      App.showMessage('renterContractsMessage', '�� kh�a c?c.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
   });
   $('confirmReceiveForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const id = App.requireValue($('receiveContractId')?.value, 'Chưa chọn hợp đồng');
+      const id = App.requireValue($('receiveContractId')?.value, 'Chua ch?n h?p d?ng');
       const evidenceUrls = ($('receiveEvidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
       const stepUpHeaders = await requireStepUpChallengeHeader();
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/renter-confirm-receive`, { ghiChu: App.requireValue($('receiveNote')?.value, 'Thiếu ghi chú nhận xe'), evidenceUrls }, '', stepUpHeaders);
-      App.showMessage('renterContractsMessage', 'Đã xác nhận nhận xe.', 'success');
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/renter-confirm-receive`, { ghiChu: App.requireValue($('receiveNote')?.value, 'Thi?u ghi ch� nh?n xe'), evidenceUrls }, '', stepUpHeaders);
+      App.showMessage('renterContractsMessage', '�� x�c nh?n nh?n xe.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
   });
   $('returnVehicleForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const id = App.requireValue($('returnContractId')?.value, 'Chưa chọn hợp đồng');
+      const id = App.requireValue($('returnContractId')?.value, 'Chua ch?n h?p d?ng');
       const evidenceUrls = ($('returnEvidenceUrls')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
       const stepUpHeaders = await requireStepUpChallengeHeader();
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/return-vehicle`, { ghiChu: App.requireValue($('returnNote')?.value, 'Thiếu ghi chú'), evidenceUrls }, '', stepUpHeaders);
-      App.showMessage('renterContractsMessage', 'Đã xác nhận trả xe.', 'success');
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${id}/return-vehicle`, { ghiChu: App.requireValue($('returnNote')?.value, 'Thi?u ghi ch�'), evidenceUrls }, '', stepUpHeaders);
+      App.showMessage('renterContractsMessage', '�� x�c nh?n tr? xe.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
   });
@@ -1381,11 +1470,11 @@ async function initRenterContractsSimple() {
     try {
       if (submitBtn) submitBtn.disabled = true;
       const stepUpHeaders = await requireStepUpChallengeHeader();
-      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('settleContractId')?.value, 'Chưa chọn hợp đồng')}/settle`, {
+      await App.requestJson('POST', `${App.getApiBase()}/api/contracts/${App.requireValue($('settleContractId')?.value, 'Chua ch?n h?p d?ng')}/settle`, {
         tongTienThanhToan: Number($('tongTienThanhToan')?.value || 0),
         tongTienHoanLai: Number($('tongTienHoanLai')?.value || 0),
       }, '', stepUpHeaders);
-      App.showMessage('renterContractsMessage', 'Đã tất toán hợp đồng.', 'success');
+      App.showMessage('renterContractsMessage', '�� t?t to�n h?p d?ng.', 'success');
       await load();
     } catch (er) { App.showMessage('renterContractsMessage', er.message, 'error'); }
     finally {
@@ -1399,19 +1488,25 @@ async function initRenterDepositsSimple() {
   try {
     const data = await App.requestJson('GET', `${App.getApiBase()}/api/renter/deposits`);
     App.renderTable('renterDepositsTable', arr(data.items), [
-      { key: 'id', label: 'Mã cọc' }, { key: 'hopdongthueid', label: 'Hợp đồng' }, { key: 'tonghoacoc', label: 'Tổng cọc', render: (r) => App.formatMoney(gv(r, 'tonghoacoc')) },
-      { key: 'trangthai', label: 'Trạng thái', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
+      { key: 'id', label: 'M� c?c' }, { key: 'hopdongthueid', label: 'H?p d?ng' }, { key: 'tonghoacoc', label: 'T?ng c?c', render: (r) => App.formatMoney(gv(r, 'tonghoacoc')) },
+      { key: 'trangthai', label: 'Tr?ng th�i', render: (r) => App.statusBadge(gv(r, 'trangthai')) },
     ]);
   } catch (e) { App.showMessage('renterDepositsMessage', e.message, 'error'); }
 }
 
 PAGE_INIT.owner_vehicles = initOwnerVehiclesSimple;
 PAGE_INIT.owner_availability = initOwnerAvailabilitySimple;
+PAGE_INIT.owner_bookings = initOwnerBookingsSimple;
 PAGE_INIT.owner_contracts = initOwnerContractsSimple;
 PAGE_INIT.owner_disputes = initOwnerDisputesSimple;
 PAGE_INIT.renter_vehicles = initRenterVehiclesSimple;
 PAGE_INIT.renter_bookings = initRenterBookingsSimple;
 PAGE_INIT.renter_contracts = initRenterContractsSimple;
 PAGE_INIT.renter_deposits = initRenterDepositsSimple;
+
+
+
+
+
 
 

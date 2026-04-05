@@ -1,4 +1,4 @@
-﻿# Backend2 Flow
+# Backend2 Flow
 
 ## Tong quan
 
@@ -102,26 +102,104 @@ API: `POST /api/vehicles`
 
 API: `POST /api/bookings`
 
-- Tim renter theo email
-- Tim xe theo bien so
-- Tao ban ghi trong bang `DangKy`
-- Dat `trangThai = daDuyet`
+- Tim renter theo token dang nhap
+- Kiem tra renter co role `khach` va `trangThai = hoatDong`
+- Tim xe theo `xeId`
+- Kiem tra xe dang `sanSang` va khong co booking / contract active trung xe
+- Tinh `soNgayThue`, `tongTienThue`
+- Snapshot `diemUyTinLucDat = diemDanhGiaTb` tai thoi diem dat
+- Xac dinh che do tu dong:
+  - Neu `diemUyTinLucDat >= 90`:
+    - `cheDoTuDong = autoApprove15m`
+    - `hanDuyetLuc = now + 15 phut`
+  - Neu `diemUyTinLucDat < 90`:
+    - `cheDoTuDong = autoCancel60m`
+    - `hanDuyetLuc = now + 60 phut`
+- Tao ban ghi `DangKy`
+- Dat `trangThai = choXacNhan`
+- Chua tao `HopDongThue`
+- Chua tao `TienCoc`
 - Chua mine block
 
-### 3. Tao contract tu booking
+### 3. Owner xem booking cho duyet
 
-API: `POST /api/contracts/create`
+API: `GET /api/owner/bookings`
 
-- Doc `DangKy`
-- Doc `Xe`
-- Doc `NguoiDung` cua renter va owner
-- Doc wallet cua renter va owner
-- Tao `HopDongThue`
-- Tao `TienCoc`
-- Cap nhat `DangKy.trangThai = daTaoHopDong`
-- Chua mine block rieng cho create contract
+- Chi owner cua xe hoac admin duoc xem
+- Tra danh sach booking cua cac xe owner so huu
+- Hydrate them thong tin xe, thong tin renter, `remainingSeconds`, `expired`, `ownerActionAllowed`
+- Frontend owner dung endpoint nay de hien thi countdown va mode auto
 
-### 4. Khoa tien coc
+### 4. Owner duyet booking thu cong
+
+API: `POST /api/bookings/{booking_id}/approve`
+
+- Chi owner cua xe hoac admin duoc duyet
+- Neu booking da qua `hanDuyetLuc` ma chua resolve, backend resolve truoc de tranh race condition
+- Chi cho duyet khi booking dang `choXacNhan`
+- Cap nhat booking:
+  - `trangThai = daDuyet`
+  - `quyetDinhBoi = chuXe` hoac `admin`
+  - `nguoiRaQuyetDinhId = actor_user_id`
+  - `quyetDinhLuc = now`
+  - `ghiChuHeThong = Duyet thu cong`
+- Sau do moi tao `HopDongThue` va `TienCoc`
+- Cap nhat booking thanh `daTaoHopDong`
+- Chua mine block o buoc nay
+
+### 5. Owner tu choi booking thu cong
+
+API: `POST /api/bookings/{booking_id}/reject`
+
+- Chi owner cua xe hoac admin duoc tu choi
+- Neu booking da qua `hanDuyetLuc` ma chua resolve, backend resolve truoc
+- Chi cho tu choi khi booking dang `choXacNhan`
+- Cap nhat booking:
+  - `trangThai = daHuy`
+  - `lyDoHuy = ly do owner nhap`
+  - `quyetDinhBoi = chuXe` hoac `admin`
+  - `nguoiRaQuyetDinhId = actor_user_id`
+  - `quyetDinhLuc = now`
+  - `ghiChuHeThong = Tu choi thu cong`
+- Khong tao contract
+- Khong tao deposit
+- Chua mine block
+
+### 6. Auto resolve booking het han
+
+API noi bo: `POST /api/internal/jobs/resolve-expired-bookings`
+
+- Duoc goi boi cron / Task Scheduler, bao ve bang header `X-Internal-Job-Secret`
+- Quet booking co:
+  - `trangThai = choXacNhan`
+  - `hanDuyetLuc <= now()`
+- Xu ly idempotent, co the goi lap lai nhieu lan
+
+Rule auto resolve:
+- Neu `cheDoTuDong = autoApprove15m`
+  - Auto duyet booking
+  - Set `quyetDinhBoi = heThong`
+  - Set `quyetDinhLuc = now`
+  - Set `ghiChuHeThong = Auto duyet do diem uy tin >= 90 va chu xe khong phan hoi trong 15 phut`
+  - Tao `HopDongThue` + `TienCoc` dung 1 lan
+  - Booking cuoi cung = `daTaoHopDong`
+- Neu `cheDoTuDong = autoCancel60m`
+  - Auto huy booking
+  - Set `trangThai = daHuy`
+  - Set `lyDoHuy = Qua 60 phut chu xe khong duyet`
+  - Set `quyetDinhBoi = heThong`
+  - Set `quyetDinhLuc = now`
+  - Set `ghiChuHeThong = Auto huy do diem uy tin < 90 va chu xe khong phan hoi trong 60 phut`
+  - Khong tao contract
+  - Khong tao deposit
+
+Luu y:
+- Neu owner da duyet truoc han thi auto job se skip
+- Neu owner da tu choi truoc han thi auto job se skip
+- Neu booking da co contract roi thi job khong tao lai, chi dong bo trang thai neu can
+- Chua mine block o buoc nay
+
+### 7. Khoa tien coc
 
 API: `POST /api/contracts/{contract_id}/lock-deposit`
 
@@ -138,7 +216,7 @@ Xu ly:
 - Cap nhat `TienCoc.trangThai = daKhoa`
 - Cap nhat `HopDongThue.trangThai = dangThue`
 
-### 5. Khach tra xe
+### 8. Khach tra xe
 
 API: `POST /api/contracts/{contract_id}/return-vehicle`
 
@@ -155,7 +233,7 @@ Xu ly:
 - Danh dau contract da nhan lai xe
 - Luu hash vao `summaryHash`
 
-### 6. Owner khiu nai hu hai
+### 9. Owner khiu nai hu hai
 
 API: `POST /api/contracts/{contract_id}/damage-claim`
 
@@ -173,7 +251,7 @@ Xu ly:
 - Mirror sang Supabase
 - Tam giu deposit de tranh chap
 
-### 7. Admin xac nhan khong hu hai
+### 10. Admin xac nhan khong hu hai
 
 API: `POST /api/disputes/{dispute_id}/admin-confirm-no-damage`
 
@@ -191,7 +269,7 @@ Xu ly:
 - Hoan toan bo deposit cho renter
 - Danh dau contract hoan thanh
 
-### 8. Admin xac nhan co hu hai
+### 11. Admin xac nhan co hu hai
 
 API: `POST /api/disputes/{dispute_id}/admin-confirm-damage`
 
@@ -210,7 +288,7 @@ Xu ly:
 - Hoan phan du cho renter neu co
 - Danh dau contract hoan thanh
 
-### 9. Tat toan contract theo flow cu
+### 12. Tat toan contract theo flow cu
 
 API: `POST /api/contracts/{contract_id}/settle`
 
@@ -313,9 +391,16 @@ Vi vay backend2 dang xu ly theo cach:
 3. Dang nhap renter, lien ket wallet
 4. Owner them xe
 5. Renter tao booking
-6. Tao contract
-7. Lock deposit
-8. Renter return vehicle
-9. Owner tao damage claim
-10. Admin confirm no damage hoac confirm damage
-11. Kiem tra `overview`, `chain`, `block`, `transaction`, `event`
+6. Owner vao danh sach booking cho duyet
+7. Chon 1 trong 3 nhanh:
+- Owner duyet thu cong
+- Owner tu choi thu cong
+- De job auto resolve xu ly sau khi het han
+8. Neu booking duoc duyet thi hop dong va tien coc moi duoc tao
+9. Lock deposit
+10. Renter return vehicle
+11. Owner tao damage claim
+12. Admin confirm no damage hoac confirm damage
+13. Kiem tra `overview`, `chain`, `block`, `transaction`, `event`
+
+
